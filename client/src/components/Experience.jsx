@@ -17,7 +17,7 @@ export const Experience = () => {
   const [myId] = useAtom(myIdAtom);
   const [map] = useAtom(mapAtom);
   
-  const playerRef = useRef(null);
+  const playerRef = useRef(null); //referencia para la camara unica del jugador
 
   useEffect(() => {
     console.log('Conectado con el id:', myId);
@@ -38,12 +38,12 @@ export const Experience = () => {
       {/* <Map />  */}
       
       {map.items.map((item, idx) => (
-          <Item key={`${item.name}-${idx}`} item={item} />
+          <Item key={`${item.name}-${idx}`} item={item} /> // Usar índice para evitar keys duplicadas (mismo item varias veces)
         ))
       }
-      {characters.map((char) => {
-        const rotationY = Number.isFinite(char.rotation) ? char.rotation : 0;// Usar SIEMPRE la rotación mantenida por el servidor
 
+      {characters.map((char) => {
+        const rotationY = (char.rotation) ? char.rotation : 0;// Usar SIEMPRE la rotación mantenida por el servidor
         return (
           <group key={char.id} 
                  position={char.position} 

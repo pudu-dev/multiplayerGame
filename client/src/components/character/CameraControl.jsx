@@ -147,45 +147,57 @@ export function ThirdPersonCamera({
 
   useFrame(() => {
     if (!actualTargetRef?.current) return;
-
+  
     actualTargetRef.current.getWorldPosition(tmpVector.current);
-
+  
     const behindZ = -Math.abs(distanceRef.current);
     const rawOffset = new THREE.Vector3(offset[0], 0, behindZ).applyQuaternion(cameraQuat.current);
-
+  
     if (fixedY.current === null) fixedY.current = tmpVector.current.y + offset[1];
     fixedY.current = THREE.MathUtils.lerp(fixedY.current, tmpVector.current.y + offset[1], 0.05);
-
+  
     desiredPosition.current.set(
       tmpVector.current.x + rawOffset.x,
       fixedY.current,
       tmpVector.current.z + rawOffset.z
     );
-
+  
     desiredLookAt.current.set(
       tmpVector.current.x + lookAtOffset[0],
       tmpVector.current.y + lookAtOffset[1],
       tmpVector.current.z + lookAtOffset[2]
     );
-
+  
+    // -------------------
+    // MODO FOLLOW (tercera persona)
+    // -------------------
     if (isFollowing) {
       if (orbitRef.current) orbitRef.current.enabled = false;
-
+    
+      // Interpolación de cámara hacia el personaje
       camera.position.lerp(desiredPosition.current, positionLerp);
-
+    
       const m = new THREE.Matrix4().lookAt(camera.position, desiredLookAt.current, camera.up);
       const targetQuat = new THREE.Quaternion().setFromRotationMatrix(m);
       camera.quaternion.slerp(targetQuat, rotationLerp);
+    
+      // Actualizar pivot de OrbitControls solo al cambiar de modo (no cada frame)
+      if (orbitRef.current) {
+        orbitRef.current.target.copy(desiredLookAt.current);
+        orbitRef.current.update();
+      }
       return;
     }
-
+  
+    // -------------------
+    // MODO LIBRE
+    // -------------------
     if (orbitRef.current) {
-      orbitRef.current.target.lerp(desiredLookAt.current, 0.35);
-      orbitRef.current.update();
+      // 🚫 No interpolar hacia el jugador
+      // Solo mantener el pivot actual del usuario (OrbitControls lo gestiona)
       orbitRef.current.enabled = true;
     }
   });
-
   // sincronizar enabled por si OrbitControls se crea más tarde
   useEffect(() => {
     if (orbitRef.current) orbitRef.current.enabled = !isFollowing;

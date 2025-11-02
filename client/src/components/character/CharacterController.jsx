@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Socket } from "../conection/SocketConnection";
 
+// --- utilidades de interpolación ---
+const lerpScalar = (a, b, t) => a + (b - a) * t;
+
+const adaptedLerp = (baseLerp, delta, fps = 60) => {
+  const k = Math.max(0, Math.min(1, baseLerp));
+  return 1 - Math.pow(1 - k, delta * fps);
+};
 
 export const usePlayerInput = () => {
   const input = useRef({
@@ -16,10 +23,10 @@ export const usePlayerInput = () => {
   const [animation, setAnimation] = useState("CharacterArmature|Idle");
   const [rotationY, setRotationY] = useState(0);
 
-  const WALK_SPEED = 0.1;
-  const RUN_SPEED = 0.5;
-  const JUMP_SPEED = 0.9;
-  const GRAVITY = -0.10;
+  const WALK_SPEED = 2; // debe coincidir con el servidor
+  const RUN_SPEED = 4; //UNIDADES POR SEGUNDO
+  const JUMP_SPEED = 5;
+  const GRAVITY = -5;
 
   // --- Estado de posición y rotación ---
   const positionRef = useRef([0, 0, 0]);
@@ -199,14 +206,16 @@ export const usePlayerInput = () => {
     positionRef.current[0] += moveX;
     positionRef.current[2] += moveZ;
 
-    // --- salto y gravedad (sin cambios) ---
+    // --- salto y gravedad (corrección: integrar velocity por deltaTime) ---
     if (input.current.jump && isGrounded.current) {
       velocityY.current = JUMP_SPEED;
       isGrounded.current = false;
       input.current.jump = false;
     }
     velocityY.current += GRAVITY * deltaTime;
-    positionRef.current[1] += velocityY.current;
+    // integrar velocity por deltaTime (antes se sumaba sin escalar -> jitter / discrepancias)
+    positionRef.current[1] += velocityY.current * deltaTime;
+    
     if (positionRef.current[1] <= 0) {
       positionRef.current[1] = 0;
       velocityY.current = 0;
@@ -219,6 +228,28 @@ export const usePlayerInput = () => {
     return positionRef.current;
   };
 
+  // --- reconciliación con servidor: lerp suave o snap si la discrepancia es grande ---
+  const reconcilePosition = (serverPos, delta = 1 / 60, snapThreshold = 0.5, baseLerp = 0.12) => {
+    const local = positionRef.current;
+    const dx = serverPos[0] - local[0];
+    const dy = serverPos[1] - local[1];
+    const dz = serverPos[2] - local[2];
+    const distSq = dx * dx + dy * dy + dz * dz;
+
+    if (distSq > snapThreshold * snapThreshold) {
+      // discrepancia grande -> snap inmediato
+      positionRef.current[0] = serverPos[0];
+      positionRef.current[1] = serverPos[1];
+      positionRef.current[2] = serverPos[2];
+      return;
+    }
+
+    const t = adaptedLerp(baseLerp, delta);
+    positionRef.current[0] = lerpScalar(local[0], serverPos[0], t);
+    positionRef.current[1] = lerpScalar(local[1], serverPos[1], t);
+    positionRef.current[2] = lerpScalar(local[2], serverPos[2], t);
+  };
+
   const moveTo = (x, z) => {
     targetRef.current = [x, 0, z];
     input.current.target = targetRef.current;
@@ -229,5 +260,5 @@ export const usePlayerInput = () => {
     Socket.emit("move", { ...input.current, target: targetRef.current, rotation: rot });
   };
 
-  return { input, animation, rotationY, updateLocalPosition, positionRef, moveTo };
+  return { input, animation, rotationY, updateLocalPosition, positionRef, moveTo, reconcilePosition };
 };

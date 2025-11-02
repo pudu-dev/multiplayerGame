@@ -7,12 +7,15 @@ const io = new Server({
 io.listen(3001);
 
 const characters = [];
-const WALK_SPEED = 0.1;
-const RUN_SPEED = 0.5;
-const JUMP_VELOCITY = 0.9;
-const GRAVITY = -0.10;
+const WALK_SPEED = 2; // unidades por segundo
+const RUN_SPEED = 4;  // unidades por segundo
+const JUMP_VELOCITY = 5;
+const GRAVITY = -5;
 
 const MAP_LIMIT= 20;
+
+const TICK_MS = 60; // ms por tick (autoritaty tick loop)
+const TICK_SEC = TICK_MS / 1000;
 
 const items= {
   table: {
@@ -45,13 +48,12 @@ const map = {
     }
   ]
 }
-
-
-
+// Generar una posición aleatoria dentro de los límites del mapa
 function generateRandomPosition() {
   return [Math.random() * map.size[0], 0, Math.random() * map.size[1]];
 }
 
+// Generar un color hexadecimal aleatorio
 function generateRandomHexColor() {
   return '#' + Math.floor(Math.random() * 16777215).toString(16);
 }
@@ -75,29 +77,31 @@ function moveTowards(position, target, speed) {
   ];
 }
 
-// --- Loop principal de actualización ---
+
 setInterval(() => {
+  const delta = TICK_SEC;
   let updated = false;
 
   for (const char of characters) {
     const input = char.input;
     const SPEED = input.run ? RUN_SPEED : WALK_SPEED;
+    const moveAmount = SPEED * delta; // unidades por tick
 
-    // --- Movimiento horizontal ---
-    if (input.forward)  char.position[2] -= SPEED;
-    if (input.backward) char.position[2] += SPEED;
-    if (input.left)     char.position[0] -= SPEED;
-    if (input.right)    char.position[0] += SPEED;
+    // Movimiento horizontal (escalar por moveAmount)
+    if (input.forward)  char.position[2] -= moveAmount;
+    if (input.backward) char.position[2] += moveAmount;
+    if (input.left)     char.position[0] -= moveAmount;
+    if (input.right)    char.position[0] += moveAmount;
 
-    // --- Movimiento hacia target (click) ---
+    // Movimiento hacia target (click)
     if (input.target) {
-      char.position = moveTowards(char.position, input.target, SPEED);
+      char.position = moveTowards(char.position, input.target, moveAmount);
       const dx = char.position[0] - input.target[0];
       const dz = char.position[2] - input.target[2];
-      if (Math.sqrt(dx*dx + dz*dz) < SPEED) input.target = null;
+      if (Math.sqrt(dx*dx + dz*dz) < moveAmount) input.target = null;
     }
 
-    // --- Rotación: mantener última orientación válida ---
+    // Rotación
     if (input.target) {
       const dx = input.target[0] - char.position[0];
       const dz = input.target[2] - char.position[2];
@@ -112,32 +116,28 @@ setInterval(() => {
         char.rotation = Math.atan2(mx, mz);
         updated = true;
       }
-      // si no hay movimiento, conservamos char.rotation
     }
 
-    // --- Salto ---
+    // Salto y gravedad escalada por delta
     if (input.jump && char.isGrounded) {
       char.velocityY = JUMP_VELOCITY;
       char.isGrounded = false;
-      input.jump = false; // consumimos el salto
+      input.jump = false;
     }
+    char.velocityY += GRAVITY * delta;
+    char.position[1] += char.velocityY * delta;
 
-    // --- Gravedad ---
-    char.velocityY += GRAVITY;
-    char.position[1] += char.velocityY;
-
-    // --- Colisión con el suelo ---
     if (char.position[1] <= 0) {
       char.position[1] = 0;
       char.velocityY = 0;
       char.isGrounded = true;
     }
 
-    // --- Limites horizontales ---
+    // Límites
     char.position[0] = Math.max(-MAP_LIMIT, Math.min(MAP_LIMIT, char.position[0]));
     char.position[2] = Math.max(-MAP_LIMIT, Math.min(MAP_LIMIT, char.position[2]));
 
-    // --- Animación ---
+    // Animación
     if (!char.isGrounded) {
       char.animation = "CharacterArmature|Jump";
     } else {
@@ -149,7 +149,7 @@ setInterval(() => {
   }
 
   if (updated) io.emit("characters", characters);
-}, 50);
+}, TICK_MS);
 
 // --- Conexión de clientes ---
 io.on("connection", (socket) => {

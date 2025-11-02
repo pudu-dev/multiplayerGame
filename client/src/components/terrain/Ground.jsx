@@ -4,10 +4,10 @@ import { Socket} from "../conection/SocketConnection";
 
 
 export const Ground = ({map, position=[0,-1,0]}) => {
-
  /*  const [map] = useAtom(mapAtom); Obtener el mapa desde el átomo Jotai, pero tambien podemos pasarlo como prop desde experience, ya que renderiza ground */
-  const [onFloor, setOnFloor] = useState(false);
-  const [_cameraFollow, setCameraFollow] = useState(() => window.__cameraIsFollowing ?? true);  // Estado que refleja si la cámara sigue al jugador o no
+  
+  const [onFloor, setOnFloor] = useState(false);//Estado para el hover visual
+  const [_cameraFollow, setCameraFollow] = useState(() => window.__cameraIsFollowing ?? true); // Estado que refleja si la cámara sigue al jugador o no
 
   useEffect(() => {
     const handler = (e) => {

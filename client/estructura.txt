@@ -5,11 +5,23 @@ src/
    │  ├─ Model.jsx          ← modelo 3D del personaje (sin cambios)
    │  ├─ CharacterController.jsx← RigidBody + Character + hook de controles
    |
+   ├─ conection/
+   |  ├─ SocketConnection.js
+   |  └─ SocketManager.jsx
+   |
    ├─ terrain/
    │  ├─ Ground.jsx             ← suelo base con dimenciones del mundo
    │  └─ Map.jsx                ← mapas con colliders
-   └─ UI.jsx                    ← elementos UI
+   |
+   ├─ items/
+   |  └─ items.jsx
+   ├─ ui/      
+   |   └─ HUD.jsx          ← elementos UI
    └─ Experience.jsx               ← combina todo: mapa, suelo, personaje y cámara
 └─ App.jsx
 └─ index.css
 └─ main.jsx
+
+
+
+-server.js
