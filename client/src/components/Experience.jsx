@@ -1,63 +1,85 @@
 import { ContactShadows, useCursor } from "@react-three/drei";
-import { useState, useRef , useEffect, Suspense } from "react";
+import { useState, useRef , useEffect } from "react";
 import { useAtom } from "jotai";
-
+import { useFrame } from "@react-three/fiber";
 import { Ground } from "./terrain/Ground";
 import { Map } from "./terrain/Map";
 import { Model } from "./character/Model";
 import { characterAtom, myIdAtom, mapAtom } from "./conection/SocketConnection";
 import { usePlayerInput } from "./character/CharacterController.jsx";
-import { ThirdPersonCamera } from "./character/CameraControl";
+import { Camera } from "./character/CameraControl";
 import Item from "./items/items.jsx";
 
-export const Experience = () => {
-  usePlayerInput(); // Captura WASD
+export const Experience = () => { //componente principal de la escena
 
   const [characters] = useAtom(characterAtom);
   const [myId] = useAtom(myIdAtom);
   const [map] = useAtom(mapAtom);
   
-  const playerRef = useRef(null); //referencia para la camara unica del jugador
+  const [onFloor, _setOnFloor] = useState(false);
+  useCursor(onFloor);
+
+  const playerRef = useRef(null); //referencia del jugador local para el movimiento de camara y personaje
+  const { updateLocalPosition } = usePlayerInput(playerRef)
+
+  useFrame((state, delta) => {updateLocalPosition(delta);}); //mover jugador local cada frame
 
   useEffect(() => {
     console.log('Conectado con el id:', myId);
   }, [myId]);
 
-  const [onFloor, _setOnFloor] = useState(false);
-  useCursor(onFloor);
-
   return (
     <>
-    
-      <ThirdPersonCamera playerRef={playerRef} />
+      {/* camara que sigue al jugador local */}
+      <Camera playerRef={playerRef}/> 
+
+      {/* mapa y luces */}
       <color attach="background" args={["#8b8b8b"]} />
       <directionalLight intensity={1} position={[25, 18, -25]} castShadow />
       <ambientLight intensity={1} />
-
       <Ground map={map} />
-      {/* <Map />  */}
+      {/*   <Map />  */}
       
+      {/* recorro el array de item */}
       {map.items.map((item, idx) => (
           <Item key={`${item.name}-${idx}`} item={item} /> // Usar índice para evitar keys duplicadas (mismo item varias veces)
         ))
       }
 
       {characters.map((char) => {
-        const rotationY = (char.rotation) ? char.rotation : 0;// Usar SIEMPRE la rotación mantenida por el servidor
-        return (
-          <group key={char.id} 
-                 position={char.position} 
-                 rotation={[0, rotationY, 0]} 
-                 ref={(char.id) === (myId) ? playerRef : undefined}>
-            <Model
-              hairColor={char.hairColor}
-              topColor={char.topColor}
-              bottomColor={char.bottomColor}
-              shoeColor={char.shoeColor}
-              animation={char.animation}
-            />
-          </group>
+        const isPlayer = char.id === myId;
+        if (isPlayer) {
+
+          // renderiza el jugador local: group con ref; su posición la actualizamos en useFrame (client-authority)
+          return (
+            <group key={char.id} ref={playerRef}>
+              <Model
+                hairColor={char.hairColor}
+                topColor={char.topColor}
+                bottomColor={char.bottomColor}
+                shoeColor={char.shoeColor}
+                animation={char.animation}
+              />
+            </group>
+          );
+        } else {
+          // renderiza a Otros jugadores: usar la posición y rotacion enviada por el servidor, nunca la local.
+          return (
+            <group
+              key={char.id}
+              position={char.position}
+              rotation={[0, char.rotation, 0]} 
+            >
+              <Model
+                hairColor={char.hairColor}
+                topColor={char.topColor}
+                bottomColor={char.bottomColor}
+                shoeColor={char.shoeColor}
+                animation={char.animation}
+              />
+            </group>
         );
+        }
       })}
     </>
   );

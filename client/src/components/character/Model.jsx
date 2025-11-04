@@ -19,7 +19,7 @@ export function Model({
 
   const [currentAnim, setCurrentAnim] = useState(animation)
 
-  // Actualizar animación con cross-fade
+  // Actualizar animación con cross-fade 
   useEffect(() => {
     if (!actions) return
     if (currentAnim !== animation) {
@@ -27,7 +27,7 @@ export function Model({
       actions[animation]?.reset().fadeIn(0.3).play()
       setCurrentAnim(animation)
     }
-  }, [animation, actions, currentAnim])
+  }, [animation, actions, currentAnim]) 
 
   return (
     <group ref={group} {...props} dispose={null}>

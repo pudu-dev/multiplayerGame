@@ -7,10 +7,11 @@ const io = new Server({
 io.listen(3001);
 
 const characters = [];
+
 const WALK_SPEED = 2; // unidades por segundo
 const RUN_SPEED = 4;  // unidades por segundo
 const JUMP_VELOCITY = 5;
-const GRAVITY = -5;
+const GRAVITY = -9.8;
 
 const MAP_LIMIT= 20;
 
@@ -87,7 +88,6 @@ setInterval(() => {
     const SPEED = input.run ? RUN_SPEED : WALK_SPEED;
     const moveAmount = SPEED * delta; // unidades por tick
 
-    // Movimiento horizontal (escalar por moveAmount)
     if (input.forward)  char.position[2] -= moveAmount;
     if (input.backward) char.position[2] += moveAmount;
     if (input.left)     char.position[0] -= moveAmount;
@@ -101,14 +101,18 @@ setInterval(() => {
       if (Math.sqrt(dx*dx + dz*dz) < moveAmount) input.target = null;
     }
 
-    // Rotación
+    // Rotación: preferimos rotación enviada por cliente(si la hay), sino calculamos hacia target o dirección de movimiento
     if (input.target) {
       const dx = input.target[0] - char.position[0];
       const dz = input.target[2] - char.position[2];
       if (dx !== 0 || dz !== 0) {
-        char.rotation = Math.atan2(dx, dz);
+        char.rotation = Math.atan2(dx, dz); // servidor calcula hacia target
         updated = true;
       }
+    } else if (typeof input.rotation === "number") {
+      // aceptar rotación enviada por el cliente (simple)
+      char.rotation = input.rotation;
+      updated = true;
     } else {
       const mx = (input.right ? 1 : 0) - (input.left ? 1 : 0);
       const mz = (input.backward ? 1 : 0) - (input.forward ? 1 : 0);
@@ -117,7 +121,6 @@ setInterval(() => {
         updated = true;
       }
     }
-
     // Salto y gravedad escalada por delta
     if (input.jump && char.isGrounded) {
       char.velocityY = JUMP_VELOCITY;
@@ -181,14 +184,8 @@ io.on("connection", (socket) => {
     const character = characters.find(c => c.id === socket.id);
     if (!character) return;
 
-    // Guardamos input y target/jump
-    character.input = { ...character.input, ...input }; 
-
-    // Guardamos rotación si viene dada
-    if (typeof input.rotation === "number") {
-     character.rotation = input.rotation;
-    }
-
+    // Guardamos input y target/jump/rotation en character.input
+    character.input = { ...character.input, ...input };
   });
 
   socket.on("disconnect", () => {
