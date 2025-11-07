@@ -1,3 +1,5 @@
-# multiplayerGame
+# multiplayerGame 
 
-## TESTING and PLAYING WITH: REACT THREE JS + SOCKET.IO
+## Solo Learning.
+## Hybrid: Server Authority + Client Prediction
+## REACT THREE JS + SOCKET.IO
