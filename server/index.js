@@ -88,10 +88,10 @@ setInterval(() => {
     const SPEED = input.run ? RUN_SPEED : WALK_SPEED;
     const moveAmount = SPEED * delta; // unidades por tick
 
-    if (input.forward)  char.position[2] -= moveAmount;
-    if (input.backward) char.position[2] += moveAmount;
-    if (input.left)     char.position[0] -= moveAmount;
-    if (input.right)    char.position[0] += moveAmount;
+    if (input.forward)  char.position[2] += moveAmount;
+    if (input.backward) char.position[2] -= moveAmount;
+    if (input.left)     char.position[0] += moveAmount;
+    if (input.right)    char.position[0] -= moveAmount;
 
     // Movimiento hacia target (click)
     if (input.target) {
@@ -114,8 +114,8 @@ setInterval(() => {
       char.rotation = input.rotation;
       updated = true;
     } else {
-      const mx = (input.right ? 1 : 0) - (input.left ? 1 : 0);
-      const mz = (input.backward ? 1 : 0) - (input.forward ? 1 : 0);
+      const mx = (input.left ? 1 : 0) - (input.right ? 1 : 0);
+      const mz = (input.forward ? 1 : 0) - (input.backward ? 1 : 0);
       if (mx !== 0 || mz !== 0) {
         char.rotation = Math.atan2(mx, mz);
         updated = true;
@@ -170,6 +170,8 @@ io.on("connection", (socket) => {
     input: { forward: false, backward: false, left: false, right: false, run: false, target: null, jump: false },
     velocityY: 0,
     isGrounded: true,
+    lastProcessedInput: -1, // para reconciliation del cliente
+    
   };
   characters.push(newChar);
 
@@ -186,6 +188,10 @@ io.on("connection", (socket) => {
 
     // Guardamos input y target/jump/rotation en character.input
     character.input = { ...character.input, ...input };
+    // Registrar seq si viene (para reconciliation del cliente)
+    if (typeof input.seq === "number") {
+      character.lastProcessedInput = input.seq;
+    }
   });
 
   socket.on("disconnect", () => {
