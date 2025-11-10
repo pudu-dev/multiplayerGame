@@ -13,7 +13,7 @@ const RUN_SPEED = 4;  // unidades por segundo
 const JUMP_VELOCITY = 5;
 const GRAVITY = -9.8;
 
-const MAP_LIMIT= 20;
+const MAP_LIMIT= 25;
 
 const TICK_MS = 60; // ms por tick (autoritaty tick loop)
 const TICK_SEC = TICK_MS / 1000;
@@ -59,6 +59,7 @@ function generateRandomHexColor() {
   return '#' + Math.floor(Math.random() * 16777215).toString(16);
 }
 
+// Mover posición hacia target con velocidad dada
 function moveTowards(position, target, speed) {
   if (!target) return position;
 
@@ -78,7 +79,7 @@ function moveTowards(position, target, speed) {
   ];
 }
 
-
+// --- Lógica del servidor: Autoridad del mundo ---
 setInterval(() => {
   const delta = TICK_SEC;
   let updated = false;

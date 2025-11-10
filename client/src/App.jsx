@@ -4,6 +4,7 @@ import { Experience } from "./components/Experience";
 import { SocketManager } from "./components/conection/SocketManager";
 import { KeyboardControls , Stats } from "@react-three/drei";
 import HUD from "./components/ui/HUD";
+/* import RAPIER from '@dimforge/rapier3d-compat'; */
 import { Physics } from "@react-three/rapier";
 // ...existing code...
 
@@ -49,10 +50,10 @@ export default function App() {
                 <Canvas shadows camera={{ position: [8, 8, 8], fov: 30 }} style={{ touchAction: "none" }}>
                 <Suspense fallback={null}>
                   <Physics gravity={[0, -9.81, 0]} debug={true}>
+                    <Stats />
                     <Experience />
                   </Physics>
                 </Suspense >
-                <Stats />
                 </Canvas>
               </KeyboardControls>
             </>

@@ -6,12 +6,16 @@ import { KeyboardInput } from "./inputs";
 // Constantes de movimiento, mismas que en el servidor
 const WALK_SPEED = 2;
 const RUN_SPEED = 4;
+
+// Constantes de salto y gravedad
 const JUMP_VELOCITY = 5;
 const GRAVITY = -9.8;
 
 export function usePlayerInput(playerRef) {
 
-  const input = KeyboardInput();
+  const input = KeyboardInput();//traemos los inputs del teclado
+
+  // estado físico local para salto y gravedad
   const velocity = useRef({ y: 0 });
   const isGrounded = useRef(true);
 
@@ -19,6 +23,17 @@ export function usePlayerInput(playerRef) {
   const seqRef = useRef(0);
   // prediccion
   const pendingInputs = useRef([]); // array de { seq, forward, backward, left, right, run, jump, rotation, dt }
+
+  // nuevo: escuchar rotaciones locales disparadas por Ground (click)
+  useEffect(() => {
+    const handler = (e) => {
+      if (!input || !input.current) return;
+      const rot = e.detail?.rotation;
+      if (typeof rot === "number") input.current.rotation = rot;
+    };
+    window.addEventListener("localRotate", handler);
+    return () => window.removeEventListener("localRotate", handler);
+  }, [input]);
 
   useEffect(() => {
     const handleServerChars = (chars) => {
@@ -48,7 +63,6 @@ export function usePlayerInput(playerRef) {
         pos.x += mx * speed * inp.dt;
         pos.z += mz * speed * inp.dt;
         rot.y = inp.rotation;
-        // nota: salto/physics vertical se deja al servidor para evitar divergencias complejas aquí
       }
     };
 

@@ -8,7 +8,7 @@ export function KeyboardInput() {
     right: false,
     run: false,
     jump: false,
-    rotation: 0
+    rotation: false,
   });
 
   useEffect(() => {

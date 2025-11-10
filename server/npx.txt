@@ -29,12 +29,14 @@ HDRI O EXR: formato de imagen de fondos, funciona en Environment de drei
 
 
 crear carpeta server
-npm init -y
+npm init -y (iniciamos nodejs para tener los package.json)
 npm install socket.io
 npm install nodemon --save-dev
 
 y en cliente:
 npm install socket.io-client
 
+dependencias opcionales:
+npm install bufferutil utf-8-validate --save-dev
 
 npm install jotai
