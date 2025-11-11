@@ -120,19 +120,24 @@ export function usePlayerInput(playerRef) {
     if (input.current.left) moveDir.sub(right);
     if (input.current.right) moveDir.add(right);
 
-    // ------------------------- Movimiento horizontal -------------------------
+    // Normalizar y tomar componente XY del mundo para enviar al servidor
+    let moveX = 0, moveZ = 0;
     if (moveDir.lengthSq() > 0) {
       moveDir.normalize();
+      moveX = moveDir.x;
+      moveZ = moveDir.z;
+    }
+
+    // ------------------------- Movimiento horizontal -------------------------
+    if (moveDir.lengthSq() > 0) {
       const speed = input.current.run ? RUN_SPEED : WALK_SPEED;
-
-      // Movimiento relativo a la cámara
+      // Movimiento relativo a la cámara (predicción local)
       pos.addScaledVector(moveDir, speed * delta);
-
-      // Calcular rotación del jugador hacia la dirección de movimiento
+      // Rotación del jugador hacia la dirección de movimiento (world)
       input.current.rotation = Math.atan2(moveDir.x, moveDir.z);
       rot.y = input.current.rotation;
     }
-
+    
     // ------------------------- SALTO -------------------------
     if (input.current.jump) {
       jumpBufferRef.current = performance.now() + JUMP_BUFFER_MS;
@@ -156,6 +161,9 @@ export function usePlayerInput(playerRef) {
       run: input.current.run,
       jump: jumped,
       rotation: input.current.rotation,
+      // enviar movimiento en coordenadas world para que servidor aplique la misma dirección
+      moveX,
+      moveZ,
       dt: delta,
     };
     pendingInputs.current.push(packet);

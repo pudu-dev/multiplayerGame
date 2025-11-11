@@ -92,11 +92,17 @@ setInterval(() => {
     const SPEED = input.run ? RUN_SPEED : WALK_SPEED; // unidades por segundo
     const moveAmount = SPEED * delta; // distancia a mover este tick
     // ----- Movimiento del personaje ---
-    // Movimiento basado en input de teclado
-    if (input.forward)  char.position[2] += moveAmount;
-    if (input.backward) char.position[2] -= moveAmount;
-    if (input.left)     char.position[0] += moveAmount;
-    if (input.right)    char.position[0] -= moveAmount;
+    // Si el cliente envía moveX/moveZ usamos ese vector (world-space) para mover; si no, fallback a flags previas
+    if (typeof input.moveX === "number" && typeof input.moveZ === "number") {
+      char.position[0] += input.moveX * SPEED * delta;
+      char.position[2] += input.moveZ * SPEED * delta;
+    } else {
+      // compatibilidad antigua: flags por ejes
+      if (input.forward)  char.position[2] += moveAmount;
+      if (input.backward) char.position[2] -= moveAmount;
+      if (input.left)     char.position[0] += moveAmount;
+      if (input.right)    char.position[0] -= moveAmount;
+    }
     // -------------------------------------------------------------------
     // Rotación: preferimos rotación enviada por cliente(si la hay), sino calculamos hacia target o dirección de movimiento
     if (input.target) {
@@ -167,11 +173,11 @@ io.on("connection", (socket) => {
     bottomColor: generateRandomHexColor(),
     shoeColor: generateRandomHexColor(),
     animation: "CharacterArmature|Idle",
-    input: { forward: false, backward: false, left: false, right: false, run: false, target: null, jump: false },
+    // añadimos moveX/moveZ para coherencia con el cliente (world-space movement)
+    input: { forward: false, backward: false, left: false, right: false, run: false, target: null, jump: false, moveX: 0, moveZ: 0 },
     velocityY: 0,
     isGrounded: true,
     lastProcessedInput: -1, // para reconciliation del cliente
-    
   };
   characters.push(newChar);
 
