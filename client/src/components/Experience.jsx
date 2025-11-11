@@ -46,7 +46,7 @@ export const Experience = () => { //componente principal de la escena
         ))
       }
 
-      {characters.map((char) => {
+      {characters.map((char) => { 
         const isPlayer = char.id === myId;
         if (isPlayer) {
 

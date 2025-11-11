@@ -36,16 +36,7 @@ export function usePlayerInput(playerRef) {
   const JUMP_EMIT_COOLDOWN_MS = 50; // cooldown entre emisiones directas
 
   const H_LERP = 0.15; // factor de interpolación horizontal
-  // ------escuchar rotaciones locales disparadas por Ground (click)-----
-  useEffect(() => {
-    const handler = (e) => {
-      if (!input || !input.current) return;
-      const rot = e.detail?.rotation;
-      if (typeof rot === "number") input.current.rotation = rot;
-    };
-    window.addEventListener("localRotate", handler);
-    return () => window.removeEventListener("localRotate", handler);
-  }, [input]);
+
 
   // Inicializar serverYRef con la posición actual si existe
   useEffect(() => {
@@ -105,53 +96,57 @@ export function usePlayerInput(playerRef) {
   // la posicion local sirve para la predicción del cliente
   const updateLocalPosition = (delta) => {
     if (!playerRef.current) return;
-    // Obtener posición y rotación actuales
+
     const pos = playerRef.current.position;
     const rot = playerRef.current.rotation;
-    // Velocidad según si corre o camina
-    const speed = input.current.run ? RUN_SPEED : WALK_SPEED; 
-    // Usar la misma convención que el servidor:
-    const mx = (input.current.left ? 1 : 0) - (input.current.right ? 1 : 0);
-    const mz = (input.current.forward ? 1 : 0) - (input.current.backward ? 1 : 0);
-    // Calcular movimiento en X y Z
-    const moveX = mx * speed * delta;
-    const moveZ = mz * speed * delta;
 
-    // Actualizar posición localmente (predicción) SOLO en X/Z
-    if (moveX !== 0 || moveZ !== 0) {
-      pos.x += moveX;
-      pos.z += moveZ;
-      input.current.rotation = Math.atan2(mx, mz);
+    // Obtener la cámara actual desde window (o desde contexto React Three Fiber)
+    const camera = window.__r3f_camera || window.globalCamera;
+    if (!camera) return; // aseguramos que exista
+
+    // Calcular forward y right según la orientación de la cámara
+    const forward = new THREE.Vector3();
+    camera.getWorldDirection(forward);
+    forward.y = 0;
+    forward.normalize();
+
+    const right = new THREE.Vector3();
+    right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+
+    // Calcular la dirección de movimiento
+    const moveDir = new THREE.Vector3();
+    if (input.current.forward) moveDir.add(forward);
+    if (input.current.backward) moveDir.sub(forward);
+    if (input.current.left) moveDir.sub(right);
+    if (input.current.right) moveDir.add(right);
+
+    // ------------------------- Movimiento horizontal -------------------------
+    if (moveDir.lengthSq() > 0) {
+      moveDir.normalize();
+      const speed = input.current.run ? RUN_SPEED : WALK_SPEED;
+
+      // Movimiento relativo a la cámara
+      pos.addScaledVector(moveDir, speed * delta);
+
+      // Calcular rotación del jugador hacia la dirección de movimiento
+      input.current.rotation = Math.atan2(moveDir.x, moveDir.z);
+      rot.y = input.current.rotation;
     }
 
-    // --------------------------- SALTO/GRAVEDAD: NO SIMULAR EN CLIENTE -------------------------------
-    // En lugar de aplicar salto y gravedad localmente, solo enviamos el flag de salto al servidor.
-    // El servidor será quien actualice pos.y, velocityY e isGrounded; el cliente los sincroniza en handleServerChars.
-    // Si el input proviene del KeyboardInput (o algún UI) ponemos el latch
+    // ------------------------- SALTO -------------------------
     if (input.current.jump) {
       jumpBufferRef.current = performance.now() + JUMP_BUFFER_MS;
       input.current.jump = false;
     }
-    // enviamos jump=true mientras el latch esté activo (o si se emitió directamente en keydown)
     const jumped = performance.now() < jumpBufferRef.current;
 
-    // ------------------------- Interpolación Y hacia valor del servidor -------------------------
+    // ------------------------- Interpolación Y -------------------------
     const targetY = serverYRef.current;
     const dy = targetY - pos.y;
-    if (Math.abs(dy) > SNAP_THRESHOLD) {
-      // Forzar snap por seguridad (ya cubierto en el handler, pero repetimos por si no llegó)
-      pos.y = targetY;
-    } else {
-      // convertir Y_LERP en alpha por frame (frame-rate independent)
-      const alpha = 1 - Math.pow(1 - Y_LERP, delta * 60);
-      pos.y += dy * alpha;
-    }
+    const alpha = 1 - Math.pow(1 - Y_LERP, delta * 60);
+    pos.y += dy * alpha;
 
-    // ------------------------- Aplicar rotación local --------------------------
-    rot.y = input.current.rotation;
-
-    // ------------------------- Enviar input al servidor -------------------------
-    // Preparar paquete de input con seq y dt (dt usado solo por cliente para re-aplicar horizontales)
+    // ------------------------- Enviar al servidor -------------------------
     const packet = {
       seq: seqRef.current++,
       forward: input.current.forward,
@@ -161,9 +156,8 @@ export function usePlayerInput(playerRef) {
       run: input.current.run,
       jump: jumped,
       rotation: input.current.rotation,
-      dt: delta
+      dt: delta,
     };
-    // Guardar para reconciliación y emitir al servidor
     pendingInputs.current.push(packet);
     Socket.emit("move", packet);
   };

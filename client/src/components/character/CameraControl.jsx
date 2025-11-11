@@ -3,9 +3,8 @@ import CameraControls from "camera-controls";
 import * as THREE from "three";
 import { useEffect, useRef, useState } from "react";
 
-CameraControls.install({ THREE }); // usamos la libreria camera-controls
+CameraControls.install({ THREE }); // usamos la librería camera-controls
 
-// ------------------------- Componente de cámara con modos follow y free --------------------------
 export function Camera({ 
   playerRef,
   offset = new THREE.Vector3(0, 5, -8),
@@ -16,41 +15,25 @@ export function Camera({
   const { camera, gl } = useThree();
   const controls = useRef();
   const [isFreeView, setIsFreeView] = useState(false);
-
-  // NUEVO: ref para suavizar el lookAt (evita giros bruscos)
   const currentLookAt = useRef(new THREE.Vector3());
 
-  //-----Inicializar CameraControls----
+  // Inicializar CameraControls
   useEffect(() => {
     controls.current = new CameraControls(camera, gl.domElement);
-    controls.current.enabled = false; // inicia deshabilitado (modo follow)
+    controls.current.enabled = false;
     controls.current.smoothTime = 0.12;
     return () => controls.current?.dispose();
   }, [camera, gl]);
 
-  // Inicializar bandera global y notificar (para Ground)
-  useEffect(() => {
-    const initialFollowing = !isFreeView;
-    window.__cameraIsFollowing = initialFollowing;
-    window.dispatchEvent(
-      new CustomEvent("cameraModeChanged", {
-        detail: { isFollowing: initialFollowing },
-      })
-    );
-  }, []); // solo al montar
-
-  // Mantener la bandera global y despachar evento cuando cambie el modo
+  // Bandera global para otros sistemas
   useEffect(() => {
     const isFollowing = !isFreeView;
     window.__cameraIsFollowing = isFollowing;
-    window.dispatchEvent(
-      new CustomEvent("cameraModeChanged", { detail: { isFollowing } })
-    );
-    // asegurar que CameraControls se habilite/deshabilite inmediatamente
+    window.dispatchEvent(new CustomEvent("cameraModeChanged", { detail: { isFollowing } }));
     if (controls.current) controls.current.enabled = isFreeView;
   }, [isFreeView]);
 
-  // Toggle con tecla C
+  // Toggle de vista libre con tecla C
   useEffect(() => {
     const handleKey = (e) => {
       if (e.key.toLowerCase() === toggleKey) {
@@ -61,33 +44,55 @@ export function Camera({
     return () => window.removeEventListener("keydown", handleKey);
   }, [toggleKey]);
 
-  // Update loop
+  // Update loop principal
   useFrame((_, delta) => {
     if (!playerRef?.current) return;
     const player = playerRef.current;
     const target = player.position.clone().add(lookAtOffset);
+    window.__r3f_camera = camera;
 
     if (!isFreeView) {
-      // FOLLOW CAMERA - suavizado separado para XZ y Y
-      const desiredPos = player.position.clone().add(offset);
+      // ----------------------------------------------
+      // FOLLOW CAMERA con lógica de bloqueo en S/A/D
+      // ----------------------------------------------
+      const camForward = new THREE.Vector3();
+      camera.getWorldDirection(camForward);
+      camForward.y = 0;
+      camForward.normalize();
 
-      // factores de lerp basados en smoothFollow, con Y más rápido para seguir saltos
-      const horizontalSmooth = smoothFollow; // conserva comportamiento anterior en X/Z
-      const verticalSmooth = Math.min(0.35, Math.max(0.12, smoothFollow * 3)); // Y sigue más rápido (ajusta si hace falta)
+      const playerForward = new THREE.Vector3(0, 0, 1).applyEuler(player.rotation);
+      playerForward.y = 0;
+      playerForward.normalize();
 
-      // convertir smooth a alpha por frame (misma fórmula que antes)
+      // dot = 1 (mirando misma dirección), dot = -1 (mirando hacia cámara)
+      const dot = camForward.dot(playerForward);
+
+      // Si el jugador NO está mirando hacia adelante (W) — es decir, está lateral o hacia cámara —
+      // mantenemos la cámara fija sin rotar el offset.
+      let rotatedOffset;
+      if (dot < 0.7) {
+        rotatedOffset = offset.clone(); // no rotar la cámara (A, S, D)
+      } else {
+        rotatedOffset = offset.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y); // seguir detrás (W)
+      }
+
+      const desiredPos = player.position.clone().add(rotatedOffset);
+
+      // Lerp con suavizado independiente en Y
+      const horizontalSmooth = smoothFollow;
+      const verticalSmooth = Math.min(0.35, Math.max(0.12, smoothFollow * 3));
       const hAlpha = 1 - Math.pow(1 - horizontalSmooth, delta * 60);
       const vAlpha = 1 - Math.pow(1 - verticalSmooth, delta * 60);
 
-      // aplicar lerp separado
       camera.position.x += (desiredPos.x - camera.position.x) * hAlpha;
       camera.position.z += (desiredPos.z - camera.position.z) * hAlpha;
       camera.position.y += (desiredPos.y - camera.position.y) * vAlpha;
 
-      // suavizar lookAt para evitar giros bruscos en Y
-      currentLookAt.current.lerp(target, 1 - Math.pow(1 - 0.2, delta * 60)); // lookAt smoothing fijo, ajustar si necesario
+      // Suavizado del lookAt
+      currentLookAt.current.lerp(target, 1 - Math.pow(1 - 0.2, delta * 60));
       camera.lookAt(currentLookAt.current);
-    } else {
+    } 
+    else {
       // FREE CAMERA
       controls.current.setTarget(target.x, target.y, target.z, false);
       controls.current.update(delta);

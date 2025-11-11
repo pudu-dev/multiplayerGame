@@ -97,13 +97,6 @@ setInterval(() => {
     if (input.backward) char.position[2] -= moveAmount;
     if (input.left)     char.position[0] += moveAmount;
     if (input.right)    char.position[0] -= moveAmount;
-    // Movimiento basado en target (click en el suelo)
-    if (input.target) {
-      char.position = moveTowards(char.position, input.target, moveAmount);
-      const dx = char.position[0] - input.target[0];
-      const dz = char.position[2] - input.target[2];
-      if (Math.sqrt(dx*dx + dz*dz) < moveAmount) input.target = null;
-    }
     // -------------------------------------------------------------------
     // Rotación: preferimos rotación enviada por cliente(si la hay), sino calculamos hacia target o dirección de movimiento
     if (input.target) {
