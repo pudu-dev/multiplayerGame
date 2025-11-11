@@ -10,6 +10,7 @@ export function KeyboardInput() {
     run: false,
     jump: false,
     rotation: false,
+
   });
 
   useEffect(() => {
