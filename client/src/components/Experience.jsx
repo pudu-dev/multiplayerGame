@@ -14,7 +14,7 @@ export const Experience = () => { //componente principal de la escena
 
   const [characters] = useAtom(characterAtom);
   const [myId] = useAtom(myIdAtom);
-  const [map] = useAtom(mapAtom);
+  const [map] = useAtom(mapAtom); 
   
   const [onFloor, _setOnFloor] = useState(false);
   useCursor(onFloor);

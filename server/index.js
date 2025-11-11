@@ -6,17 +6,19 @@ const io = new Server({
 
 io.listen(3001);
 
+// ------------------------------ CONSTANTES DEL JUEGO-------------------------------------
 const characters = [];
-
+//velodidad de movimiento
 const WALK_SPEED = 2; // unidades por segundo
 const RUN_SPEED = 4;  // unidades por segundo
-const JUMP_VELOCITY = 5;
+//salto y gravedad
+const JUMP_VELOCITY = 10;
 const GRAVITY = -9.8;
-
+//limite de mapa
 const MAP_LIMIT= 25;
-
-const TICK_MS = 60; // ms por tick (autoritaty tick loop)
+const TICK_MS = 33; // ms por tick (autoritaty tick loop)
 const TICK_SEC = TICK_MS / 1000;
+
 
 const items= {
   table: {
@@ -49,17 +51,18 @@ const map = {
     }
   ]
 }
+// -------------------------------------------------------------------
 // Generar una posición aleatoria dentro de los límites del mapa
 function generateRandomPosition() {
   return [Math.random() * map.size[0], 0, Math.random() * map.size[1]];
 }
-
+// -------------------------------------------------------------------
 // Generar un color hexadecimal aleatorio
 function generateRandomHexColor() {
   return '#' + Math.floor(Math.random() * 16777215).toString(16);
 }
-
-// Mover posición hacia target con velocidad dada
+// ------------------------------------------------------------------------------
+// ------- Función para mover hacia un target con una velocidad dada -------------
 function moveTowards(position, target, speed) {
   if (!target) return position;
 
@@ -78,30 +81,30 @@ function moveTowards(position, target, speed) {
     position[2] + nz * speed
   ];
 }
-
-// --- Lógica del servidor: Autoridad del mundo ---
+// -------------------------------------------------------------------
+// --- Lógica del servidor: Autoridad del mundo ----------------------
 setInterval(() => {
-  const delta = TICK_SEC;
-  let updated = false;
-
+  const delta = TICK_SEC; // tiempo fijo por tick
+  let updated = false; // bandera para saber si enviamos actualización a clientes
+  // --- Actualizar cada personaje --------
   for (const char of characters) {
-    const input = char.input;
-    const SPEED = input.run ? RUN_SPEED : WALK_SPEED;
-    const moveAmount = SPEED * delta; // unidades por tick
-
+    const input = char.input; // { forward, backward, left, right, run, target, jump, rotation }
+    const SPEED = input.run ? RUN_SPEED : WALK_SPEED; // unidades por segundo
+    const moveAmount = SPEED * delta; // distancia a mover este tick
+    // ----- Movimiento del personaje ---
+    // Movimiento basado en input de teclado
     if (input.forward)  char.position[2] += moveAmount;
     if (input.backward) char.position[2] -= moveAmount;
     if (input.left)     char.position[0] += moveAmount;
     if (input.right)    char.position[0] -= moveAmount;
-
-    // Movimiento hacia target (click)
+    // Movimiento basado en target (click en el suelo)
     if (input.target) {
       char.position = moveTowards(char.position, input.target, moveAmount);
       const dx = char.position[0] - input.target[0];
       const dz = char.position[2] - input.target[2];
       if (Math.sqrt(dx*dx + dz*dz) < moveAmount) input.target = null;
     }
-
+    // -------------------------------------------------------------------
     // Rotación: preferimos rotación enviada por cliente(si la hay), sino calculamos hacia target o dirección de movimiento
     if (input.target) {
       const dx = input.target[0] - char.position[0];
@@ -110,8 +113,7 @@ setInterval(() => {
         char.rotation = Math.atan2(dx, dz); // servidor calcula hacia target
         updated = true;
       }
-    } else if (typeof input.rotation === "number") {
-      // aceptar rotación enviada por el cliente (simple)
+    } else if (typeof input.rotation === "number") { 
       char.rotation = input.rotation;
       updated = true;
     } else {
@@ -122,7 +124,7 @@ setInterval(() => {
         updated = true;
       }
     }
-    // Salto y gravedad escalada por delta
+    //----------------- Salto y gravedad escalada por delta----------------------
     if (input.jump && char.isGrounded) {
       char.velocityY = JUMP_VELOCITY;
       char.isGrounded = false;
@@ -131,13 +133,15 @@ setInterval(() => {
     char.velocityY += GRAVITY * delta;
     char.position[1] += char.velocityY * delta;
 
-    if (char.position[1] <= 0) {
+    // usar epsilon y comprobar velocidad al aterrizar
+    const EPS = 0.01;
+    if (char.position[1] <= EPS && char.velocityY <= 0) {
       char.position[1] = 0;
       char.velocityY = 0;
       char.isGrounded = true;
     }
-
-    // Límites
+    // -------------------------------------------------------------------
+    // Límites del mapa
     char.position[0] = Math.max(-MAP_LIMIT, Math.min(MAP_LIMIT, char.position[0]));
     char.position[2] = Math.max(-MAP_LIMIT, Math.min(MAP_LIMIT, char.position[2]));
 
@@ -155,7 +159,9 @@ setInterval(() => {
   if (updated) io.emit("characters", characters);
 }, TICK_MS);
 
-// --- Conexión de clientes ---
+// -----------------------------------------------------------------------------------------
+// ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+// ----------------------------- Conexión de clientes ---------------------------------------
 io.on("connection", (socket) => {
   console.log("Usuario conectado con ID:", socket.id);
 
@@ -176,25 +182,27 @@ io.on("connection", (socket) => {
   };
   characters.push(newChar);
 
+  // enviar estado inicial al cliente
   socket.emit("welcome", { id: socket.id,
                            map,
                            characters,
                            items,}); 
 
+  // emitimos a todos los clientes del nuevo personaje
   io.emit("characters", characters);
 
+  // manejar inputs de movimiento desde el cliente
   socket.on("move", (input) => {
     const character = characters.find(c => c.id === socket.id);
     if (!character) return;
-
-    // Guardamos input y target/jump/rotation en character.input
+      // Guardamos input y target/jump/rotation en character.input
     character.input = { ...character.input, ...input };
-    // Registrar seq si viene (para reconciliation del cliente)
+      // Registrar seq si viene (para reconciliation del cliente)
     if (typeof input.seq === "number") {
       character.lastProcessedInput = input.seq;
     }
   });
-
+  // manejar desconexiones
   socket.on("disconnect", () => {
     console.log("Usuario desconectado con ID:", socket.id);
     const index = characters.findIndex(c => c.id === socket.id);

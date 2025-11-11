@@ -1,5 +1,6 @@
 import { useRef, useEffect } from "react";
 
+// ------------------------- Hook para capturar inputs de teclado --------------------------
 export function KeyboardInput() {
   const input = useRef({
     forward: false,
