@@ -18,16 +18,24 @@ export function usePlayerInput(playerRef) {
   // estado físico local para salto y gravedad
   const velocity = useRef({ y: 0 });
   const isGrounded = useRef(true);
-  // reconciliation
-  const seqRef = useRef(0);
-  // prediccion
-  const pendingInputs = useRef([]); // array de { seq, forward, backward, left, right, run, jump, rotation, dt }
 
-  // --- Interpolación Y (servidor -> cliente)
+  // server reconciliation
+  const seqRef = useRef(0);
+  // client prediction
+  const pendingInputs = useRef([]); // array de { seq, forward, backward, left, right, run, jump, rotation, dt }
+ 
+  // --- entity interpolation para salto. Interpolación Y (servidor -> cliente)
   const serverYRef = useRef(0);
   const SNAP_THRESHOLD = 1.0;   // si la diferencia es mayor, forzamos snap
   const Y_LERP = 0.2;           // factor base de lerp por frame (ajustable)
+  // --- Buffer para input de salto (evita misses por tap entre frames)
+  const jumpBufferRef = useRef(0);
+  const JUMP_BUFFER_MS = 150; // tiempo en ms que seguiremos enviando el salto tras la pulsación
+  // --- Evitar múltiples emisiones rápidas (cuando mantienes la tecla)
+  const lastJumpEmitRef = useRef(0);
+  const JUMP_EMIT_COOLDOWN_MS = 50; // cooldown entre emisiones directas
 
+  const H_LERP = 0.15; // factor de interpolación horizontal
   // ------escuchar rotaciones locales disparadas por Ground (click)-----
   useEffect(() => {
     const handler = (e) => {
@@ -53,9 +61,9 @@ export function usePlayerInput(playerRef) {
       // Actualizar posición X/Z y rotación del jugador local según el servidor
       const pos = playerRef.current.position;
       const rot = playerRef.current.rotation;
-      pos.x = me.position[0];
-      pos.z = me.position[2];
-      rot.y = me.rotation;
+      pos.x += (me.position[0] - pos.x) * H_LERP; // interpolamos la posicion con un lerp
+      pos.z += (me.position[2] - pos.z) * H_LERP;
+      rot.y = me.rotation; // rotación directa (no interpolada)
 
       // Guardar Y objetivo para interpolar (no forzamos snap aquí salvo gran discrepancia)
       const serverY = me.position[1];
@@ -119,9 +127,13 @@ export function usePlayerInput(playerRef) {
     // --------------------------- SALTO/GRAVEDAD: NO SIMULAR EN CLIENTE -------------------------------
     // En lugar de aplicar salto y gravedad localmente, solo enviamos el flag de salto al servidor.
     // El servidor será quien actualice pos.y, velocityY e isGrounded; el cliente los sincroniza en handleServerChars.
-    const jumped = Boolean(input.current.jump);
-    // consumir el input de salto localmente para no reenviarlo indefinidamente
-    input.current.jump = false;
+    // Si el input proviene del KeyboardInput (o algún UI) ponemos el latch
+    if (input.current.jump) {
+      jumpBufferRef.current = performance.now() + JUMP_BUFFER_MS;
+      input.current.jump = false;
+    }
+    // enviamos jump=true mientras el latch esté activo (o si se emitió directamente en keydown)
+    const jumped = performance.now() < jumpBufferRef.current;
 
     // ------------------------- Interpolación Y hacia valor del servidor -------------------------
     const targetY = serverYRef.current;
@@ -155,6 +167,38 @@ export function usePlayerInput(playerRef) {
     pendingInputs.current.push(packet);
     Socket.emit("move", packet);
   };
+
+  // Emisión directa en keydown (Space) para garantizar entrega rápida al servidor
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // detectar Space (usar code para evitar problemas con layout)
+      if (e.code !== "Space") return;
+      const now = performance.now();
+      if (now - lastJumpEmitRef.current < JUMP_EMIT_COOLDOWN_MS) return;
+      lastJumpEmitRef.current = now;
+
+      // preparar paquete y emitir inmediatamente (dt = 0 porque es instantáneo)
+      const packet = {
+        seq: seqRef.current++,
+        forward: input.current.forward,
+        backward: input.current.backward,
+        left: input.current.left,
+        right: input.current.right,
+        run: input.current.run,
+        jump: true,
+        rotation: input.current.rotation,
+        dt: 0
+      };
+      pendingInputs.current.push(packet);
+      Socket.emit("move", packet);
+
+      // arrancar el latch para que los siguientes frames también consideren jump activo
+      jumpBufferRef.current = now + JUMP_BUFFER_MS;
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [ input ]);
 
   return { updateLocalPosition, input };
 }
