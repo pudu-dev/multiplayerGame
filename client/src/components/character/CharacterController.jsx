@@ -12,7 +12,7 @@ const JUMP_VELOCITY = 10;
 const GRAVITY = -9.8;
 
 // ------------------------- Hook principal para el control del jugador --------------------------
-export function usePlayerInput(playerRef) {
+export function usePlayerInput(playerRef, camera) {
   //traemos los inputs del teclado
   const input = KeyboardInput();
   // estado físico local para salto y gravedad
@@ -100,13 +100,13 @@ export function usePlayerInput(playerRef) {
     const pos = playerRef.current.position;
     const rot = playerRef.current.rotation;
 
-    // Obtener la cámara actual desde window (o desde contexto React Three Fiber)
-    const camera = window.__r3f_camera || window.globalCamera;
-    if (!camera) return; // aseguramos que exista
+    // Obtener la cámara pasada como parámetro (fallback a globals solo si es necesario)
+    const cam = camera || window.__r3f_camera || window.globalCamera;
+    if (!cam) return; // aseguramos que exista
 
     // Calcular forward y right según la orientación de la cámara
     const forward = new THREE.Vector3();
-    camera.getWorldDirection(forward);
+    cam.getWorldDirection(forward);
     forward.y = 0;
     forward.normalize();
 

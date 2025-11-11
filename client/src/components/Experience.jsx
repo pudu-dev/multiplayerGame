@@ -1,7 +1,7 @@
 import { ContactShadows, useCursor } from "@react-three/drei";
 import { useState, useRef , useEffect } from "react";
 import { useAtom } from "jotai";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, Canvas, useThree } from "@react-three/fiber";
 import { Ground } from "./terrain/Ground";
 import { Map } from "./terrain/Map";
 import { Model } from "./character/Model";
@@ -11,6 +11,7 @@ import { Camera } from "./character/CameraControl";
 import Item from "./items/items.jsx";
 
 export const Experience = () => { //componente principal de la escena
+  const { camera } = useThree(); // obtener cámara del contexto R3F
 
   const [characters] = useAtom(characterAtom);
   const [myId] = useAtom(myIdAtom);
@@ -20,7 +21,7 @@ export const Experience = () => { //componente principal de la escena
   useCursor(onFloor);
 
   const playerRef = useRef(null); //referencia del jugador local para el movimiento de camara y personaje
-  const { updateLocalPosition } = usePlayerInput(playerRef)
+  const { updateLocalPosition } = usePlayerInput(playerRef, camera) // pasar la cámara al hook
 
   useFrame((state, delta) => {updateLocalPosition(delta);}); //mover jugador local cada frame
 
@@ -84,3 +85,28 @@ export const Experience = () => { //componente principal de la escena
     </>
   );
 };
+
+// Ejemplo de llamar a invalidate desde un hook cuando ocurre algo:
+function UseInvalidateExample() {
+  const { invalidate } = useThree()
+  useEffect(() => {
+    const onResize = () => invalidate() // invalidar solo cuando haga falta
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [invalidate])
+  return null
+}
+
+export default function ExperienceWrapper(props) {
+  return (
+    <Canvas
+      frameloop="demand"                // render solo cuando se llame invalidate()
+      dpr={[1, 1.5]}                    // limitar pixelRatio (ajusta según prueba)
+      gl={{ antialias: true, powerPreference: 'high-performance' }}
+      shadows={false}                   // prueba desactivar sombras o limitar
+    >
+      <Experience {...props} />
+      <UseInvalidateExample />
+    </Canvas>
+  )
+}

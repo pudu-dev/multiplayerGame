@@ -1,5 +1,5 @@
 // ...existing code...
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAtom, } from 'jotai';
 import { Socket, characterAtom, myIdAtom, mapAtom} from "./SocketConnection.js";
 
@@ -9,29 +9,51 @@ export const SocketManager = () => {
   
   const [_mapAtom, setMap] = useAtom(mapAtom);
 
+  const bufferRef = useRef({ characters: null, map: null, id: null });
+  const intervalRef = useRef(null);
+
   useEffect(() => {
+    const flushBuffer = () => {
+      const buf = bufferRef.current;
+      // aplicar actualizaciones agrupadas en una sola renderización
+      if (buf.characters) {
+        setCharacters(buf.characters);
+        buf.characters = null;
+      }
+      if (buf.map) {
+        setMap(buf.map);
+        buf.map = null;
+      }
+      if (buf.id) {
+        setMyId(buf.id);
+        buf.id = null;
+      }
+    };
+
+    // procesar buffer a 20Hz (ajusta si necesitas más/menos frecuencia)
+    intervalRef.current = setInterval(flushBuffer, 1000 / 20);
+
     const onConnect = () => {
       console.log('connect', Socket.id, { connected: Socket.connected });
       if (Socket.id) setMyId(Socket.id);
     };
     const onDisconnect = (reason) => console.log('disconnect', reason);
 
-    
     const onWelcome = (value) => {
       console.log('welcome', value);
-      setCharacters(value.characters);
-      setMyId(value.id);
-      setMap(value.map);
-
+      // bufferizar en vez de setState inmediato
+      bufferRef.current.characters = value.characters;
+      bufferRef.current.id = value.id;
+      bufferRef.current.map = value.map;
     };
     const onCharacters = (value) => {
-      setCharacters(value);
-      // Inferir myId si no está fijado y el socket.id coincide con algún character
+      // bufferizar actualizaciones de personajes
+      bufferRef.current.characters = value;
+      // intentar inferir myId si no está fijado
       if (!_myId && Socket.id) {
         const found = value.find((c) => String(c.id) === String(Socket.id));
         if (found) {
-          console.log('inferred myId from characters:', found.id);
-          setMyId(found.id);
+          bufferRef.current.id = found.id;
         }
       }
     };
@@ -41,13 +63,13 @@ export const SocketManager = () => {
     Socket.on('welcome', onWelcome);
     Socket.on('characters', onCharacters);
 
-    // Si ya está conectado al montar, fijar el id inmediatamente
     if (Socket.connected && Socket.id) {
       setMyId(Socket.id);
     }
     Socket.connect();
 
     return () => {
+      clearInterval(intervalRef.current);
       Socket.off('connect', onConnect);
       Socket.off('disconnect', onDisconnect);
       Socket.off('welcome', onWelcome);

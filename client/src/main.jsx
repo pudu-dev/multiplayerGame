@@ -56,6 +56,9 @@ crear carpeta server
 npm init -y
 npm install socket.io
 npm install nodemon --save-dev
+npm install bufferutil --save-dev
+npm install utf-8-validate --save-dev
+npm dedupe (evita duplicados en las dependencias)
 
 y en cliente:
 npm install socket.io-client
