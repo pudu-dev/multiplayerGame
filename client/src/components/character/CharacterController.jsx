@@ -22,7 +22,12 @@ export function usePlayerInput(playerRef) {
   const seqRef = useRef(0);
   // prediccion
   const pendingInputs = useRef([]); // array de { seq, forward, backward, left, right, run, jump, rotation, dt }
- 
+
+  // --- Interpolación Y (servidor -> cliente)
+  const serverYRef = useRef(0);
+  const SNAP_THRESHOLD = 1.0;   // si la diferencia es mayor, forzamos snap
+  const Y_LERP = 0.2;           // factor base de lerp por frame (ajustable)
+
   // ------escuchar rotaciones locales disparadas por Ground (click)-----
   useEffect(() => {
     const handler = (e) => {
@@ -34,22 +39,37 @@ export function usePlayerInput(playerRef) {
     return () => window.removeEventListener("localRotate", handler);
   }, [input]);
 
+  // Inicializar serverYRef con la posición actual si existe
+  useEffect(() => {
+    if (playerRef?.current) serverYRef.current = playerRef.current.position.y;
+  }, [playerRef]);
+
   // ------------------------- Aplicar estado autoritario del servidor --------------------------
   useEffect(() => {
     const handleServerChars = (chars) => {
       if (!playerRef.current) return;
       const me = chars.find(c => c.id === Socket.id);
       if (!me) return;
-      // Actualizar posición y rotación del jugador local según el servidor
+      // Actualizar posición X/Z y rotación del jugador local según el servidor
       const pos = playerRef.current.position;
       const rot = playerRef.current.rotation;
       pos.x = me.position[0];
-      pos.y = me.position[1];
       pos.z = me.position[2];
       rot.y = me.rotation;
 
-      // --- NUEVO: sincronizar estado vertical para evitar desincronía de suelo/salto ---
-      // actualizar velocidad vertical e isGrounded desde el servidor
+      // Guardar Y objetivo para interpolar (no forzamos snap aquí salvo gran discrepancia)
+      const serverY = me.position[1];
+      const dy = serverY - pos.y;
+      if (Math.abs(dy) > SNAP_THRESHOLD) {
+        // Snap si la discrepancia es muy grande (teletransporte)
+        pos.y = serverY;
+        serverYRef.current = serverY;
+      } else {
+        // Guardamos la Y objetivo y dejaremos que updateLocalPosition la interpole suavemente
+        serverYRef.current = serverY;
+      }
+
+      // --- Sincronizar estado vertical para reconciliación ---
       velocity.current.y = typeof me.velocityY === "number" ? me.velocityY : velocity.current.y;
       isGrounded.current = Boolean(me.isGrounded);
 
@@ -102,6 +122,18 @@ export function usePlayerInput(playerRef) {
     const jumped = Boolean(input.current.jump);
     // consumir el input de salto localmente para no reenviarlo indefinidamente
     input.current.jump = false;
+
+    // ------------------------- Interpolación Y hacia valor del servidor -------------------------
+    const targetY = serverYRef.current;
+    const dy = targetY - pos.y;
+    if (Math.abs(dy) > SNAP_THRESHOLD) {
+      // Forzar snap por seguridad (ya cubierto en el handler, pero repetimos por si no llegó)
+      pos.y = targetY;
+    } else {
+      // convertir Y_LERP en alpha por frame (frame-rate independent)
+      const alpha = 1 - Math.pow(1 - Y_LERP, delta * 60);
+      pos.y += dy * alpha;
+    }
 
     // ------------------------- Aplicar rotación local --------------------------
     rot.y = input.current.rotation;
