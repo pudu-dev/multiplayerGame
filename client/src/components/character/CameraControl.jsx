@@ -53,31 +53,10 @@ export function Camera({
 
     if (!isFreeView) {
       // ----------------------------------------------
-      // FOLLOW CAMERA con lógica de bloqueo en S/A/D
+      // FOLLOW CAMERA 
       // ----------------------------------------------
-      const camForward = new THREE.Vector3();
-      camera.getWorldDirection(camForward);
-      camForward.y = 0;
-      camForward.normalize();
-
-      const playerForward = new THREE.Vector3(0, 0, 1).applyEuler(player.rotation);
-      playerForward.y = 0;
-      playerForward.normalize();
-
-      // dot = 1 (mirando misma dirección), dot = -1 (mirando hacia cámara)
-      const dot = camForward.dot(playerForward);
-
-      // Si el jugador NO está mirando hacia adelante (W) — es decir, está lateral o hacia cámara —
-      // mantenemos la cámara fija sin rotar el offset.
-      let rotatedOffset;
-      if (dot < 0.7) {
-        rotatedOffset = offset.clone(); // no rotar la cámara (A, S, D)
-      } else {
-        rotatedOffset = offset.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y); // seguir detrás (W)
-      }
-
+      const rotatedOffset = offset.clone();
       const desiredPos = player.position.clone().add(rotatedOffset);
-
       // Lerp con suavizado independiente en Y
       const horizontalSmooth = smoothFollow;
       const verticalSmooth = Math.min(0.35, Math.max(0.12, smoothFollow * 3));

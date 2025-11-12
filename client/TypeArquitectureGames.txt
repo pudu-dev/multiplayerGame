@@ -1,0 +1,238 @@
+------------------------------------------------------------------------------------------------------------------
+  ESTRUCTURA DE DESARROLLO DE VIDEOJUEGOS MULTIJUGADOR
+------------------------------------------------------------------------------------------------------------------
+||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+------------------------------------------------------------------------------------------------------------------
+1. CLIENT-SIDE AUTHORITY (El cliente tiene el control)
+------------------------------------------------------------------------------------------------------------------
+	Descripción:
+El cliente calcula todo el movimiento y la lógica del jugador y simplemente envía la posición final al servidor.
+
+	Responsabilidades:
+- Cliente: Calcula física, movimiento y animaciones. Envía su posición al servidor.
+- Servidor: Solo retransmite las posiciones a otros jugadores (no valida).
+
+	Ventajas:
++ Responde muy rápido (sin lag perceptible)
++ Fácil de implementar
+
+	Desventajas:
+- Muy inseguro (pueden enviar datos falsos)
+- Difícil mantener sincronización entre clientes
+
+	Usos comunes:
+- Juegos casuales o no competitivos (minijuegos web, clones simples de Agar.io)
+------------------------------------------------------------------------------------------------------------------
+||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+------------------------------------------------------------------------------------------------------------------
+2. SERVER-SIDE AUTHORITY (El servidor tiene el control total)
+------------------------------------------------------------------------------------------------------------------
+Descripción:
+El servidor simula todo: movimiento, colisiones, disparos, etc. 
+Los clientes solo envían sus inputs (teclas, dirección, acciones).
+
+Responsabilidades:
+- Cliente: Envía inputs y renderiza el estado recibido del servidor.
+- Servidor: Procesa inputs, actualiza el estado real y lo envía a todos.
+
+Ventajas:
++ Muy seguro (sin trampas)
++ Estado coherente entre todos los jugadores
+
+Desventajas:
+- Puede sentirse con lag si hay latencia
+- Requiere interpolación para suavizar el movimiento
+
+Usos comunes:
+- Shooters, MOBAs, MMOs (Counter-Strike, Valorant, World of Warcraft)
+
+
+RESUMEN COMPARATIVO
+-------------------------------------------------------------------------------------------------------------------------
+| Enfoque       | Control principal | Ventajas                 | Desventajas                 | Ejemplos                 |
+|---------------|-------------------|--------------------------|-----------------------------|--------------------------|
+| Client-side   | Cliente           | Rápido, simple           | Trampas, desync             | Juegos casuales          |
+| Server-side   | Servidor          | Seguro, coherente        | Lag, carga alta             | CS, WoW                  |
+| Híbrido:		| Servidor	    	| Fluido, seguro	       | Más complejo 		  	     |Agar.io,Fortnite,Overwatch|			
+(Server Authority+ Client Pred.)-(con predicción local)																	|
+-------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------
+||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+------------------------------------------------------------------------------------------------------------------
+--------------------UTILIZADO:::::::
+--------------------UTILIZADO:::::::
+--------------------UTILIZADO:::::::
+--------------------UTILIZADO:::::::
+
+3. HÍBRIDO — SERVER AUTHORITY + CLIENT PREDICTION
+------------------------------------------------------------------------------------------------------------------
+Descripción:
+El cliente predice su propio movimiento para no sentir lag, 
+pero el servidor valida y corrige el resultado real.
+
+Responsabilidades:
+- Cliente: Simula localmente (predicción), envía inputs al servidor y corrige suavemente al recibir datos reales.
+- Servidor: Simula el movimiento oficial y envía posiciones actualizadas a todos los clientes.
+
+Ventajas:
++ Sensación fluida (bajo lag)
++ Sin trampas (el servidor mantiene autoridad)
++ Corrección suave entre cliente y servidor (reconciliación)
+
+Desventajas:
+- Implementación más compleja (predicción + reconciliación)
+
+Usos comunes:
+- Juegos en tiempo real con alto rendimiento en red (Agar.io, Fortnite, Overwatch, GTA Online)
+
+------------------------------------------------------------------------------------------------------------------
+FLUJO LÓGICO
+------------------------------------------------------------------------------------------------------------------
+1. Cliente lee inputs (teclas, dirección, disparo) y añade inputSeq.
+2. Cliente aplica predicción local: actualiza su entidad aplicando el input inmediatamente y renderiza. (CLIENT PREDICTION)
+3. Cliente envía el input (con inputSeq y timestamp) al servidor.
+4. Servidor procesa inputs en orden, simula su mundo (colisiones, daño, etc.) y genera snapshots/estado oficial con stateTick. (SERVER AUTHORITY)
+5. Servidor envía snapshots periódicamente a todos los clientes.
+6. Cliente recibe snapshot; si su estado predicho difiere del estado oficial, aplica reconciliación (corrige posición/velocidad) suavemente. (SERVER RECONCILIATION)
+7. Cliente interpola y suaviza posiciones de OTRAS entidades (jugadores remotos) usando: buffer, snapshots, lerp, time offset, 
+   es decir, un buffer con snapshots atrasadas y suavizadas. (CLIENT INTERPOLATION)
+
+------------------------------------------------------------------------------------------------------------------
+INTERPOLACIÓN — CONCEPTO GENERAL
+------------------------------------------------------------------------------------------------------------------
+La interpolación se utiliza cuando el servidor y el cliente no están perfectamente sincronizados (lo cual siempre ocurre debido a la latencia).
+El cliente recibe estados “viejos” del servidor (por ejemplo, 100 ms atrasados), y si aplicara esos datos directamente, vería saltos bruscos (teleports).
+
+👉 La interpolación “suaviza” esos saltos moviendo gradualmente la posición actual hacia la del servidor.
+
+------------------------------------------------------------------------------------------------------------------
+APLICACIÓN PRÁCTICA
+------------------------------------------------------------------------------------------------------------------
+- JUGADOR LOCAL:
+  • Debe responder inmediatamente a los inputs (client prediction).
+  • NO se interpola, porque eso introduciría input lag.
+  • El servidor valida el movimiento y, si es necesario, aplica reconciliación.
+
+- JUGADORES REMOTOS:
+  • Se renderizan con un ligero retraso (por ejemplo, 100 ms).
+  • Se interpola su movimiento entre snapshots atrasadas para suavizar desplazamientos y ocultar jitter o packet loss.
+  • Usualmente se interpola solo en el plano XZ (movimiento horizontal), dejando el eje Y controlado por la física del servidor (gravedad, salto, caída).
+
+------------------------------------------------------------------------------------------------------------------
+RESUMEN TÉCNICO
+------------------------------------------------------------------------------------------------------------------
+| Sistema                    | Rol                          | Técnica                                 | Propósito                                  |
+|-----------------------------|------------------------------|------------------------------------------|---------------------------------------------|
+| Cliente (jugador local)     | Predicción                   | Client Prediction                        | Respuesta inmediata a los inputs            |
+| Servidor                    | Validación                   | Server Authority + Reconciliation        | Coherencia y prevención de trampas          |
+| Cliente (jugadores remotos) | Suavizado visual              | Client Interpolation (solo XZ)           | Movimiento fluido y estable en red          |
+
+
+⚙️ TIPOS DE RECONCILIACIÓN EN JUEGOS EN RED
+============================================================
+
+La reconciliación se usa para sincronizar el estado del cliente con el del servidor,
+corrigiendo errores acumulados por la predicción local.
+Se aplica cuando el cliente predice su movimiento y el servidor envía el estado autoritativo.
+
+------------------------------------------------------------
+1️⃣ RECONCILIACIÓN DIRECTA (INSTANTÁNEA)
+------------------------------------------------------------
+Descripción:
+El cliente ajusta su posición directamente al estado del servidor sin suavizado.
+
+Ejemplo:
+pos.copy(serverPos);
+rot.y = serverRotY;
+
+Ventajas:
++ Precisión total (idéntico al servidor)
++ Implementación simple
+
+Desventajas:
+- Genera “saltos” visuales si hay lag o diferencias grandes
+
+Uso típico:
+Simuladores o juegos donde la exactitud es prioritaria.
+
+------------------------------------------------------------
+2️⃣ RECONCILIACIÓN CON BLENDING (INTERPOLADA)
+------------------------------------------------------------
+Descripción:
+El cliente suaviza su posición local hacia la del servidor usando interpolación lineal (lerp).
+
+Ejemplo:
+pos.lerp(serverPos, 0.15); // se mueve 15% hacia la posición del servidor cada frame
+
+Ventajas:
++ Movimiento suave y natural
++ Evita teleports o jitter pequeños
+
+Desventajas:
+- Pequeño retraso visual (input-lag leve)
+- Menor precisión instantánea
+
+Uso típico:
+Juegos donde la fluidez visual importa más que la precisión (RPGs, third-person casual).
+
+------------------------------------------------------------
+3️⃣ RECONCILIACIÓN DURA (SNAP)
+------------------------------------------------------------
+Descripción:
+Combinación entre reconciliación directa e interpolada:
+Si la diferencia es pequeña → se interpola.
+Si la diferencia es grande → se hace un snap inmediato.
+
+Ejemplo:
+const diff = pos.distanceTo(serverPos);
+if (diff > 1.0) pos.copy(serverPos);
+else pos.lerp(serverPos, 0.15);
+
+Ventajas:
++ Corrige grandes errores sin dejar de ser suave
++ Equilibrio entre precisión y fluidez
+
+Desventajas:
+- Snap visible si la corrección es demasiado grande
+
+Uso típico:
+Modelos híbridos (Client Prediction + Reconciliation).
+
+------------------------------------------------------------
+4️⃣ RECONCILIACIÓN BASADA EN INPUTS
+------------------------------------------------------------
+Descripción:
+El cliente mantiene una lista de inputs enviados al servidor.
+Cuando el servidor confirma el último input procesado (ack),
+el cliente reaplica los inputs pendientes aún no procesados en su simulación local.
+
+Ejemplo:
+const ack = server.lastProcessedInput;
+const remainingInputs = pendingInputs.filter(i => i.seq > ack);
+for (const input of remainingInputs) {
+  simulateLocalMovement(input);
+}
+
+Ventajas:
++ Movimiento idéntico al servidor (sin jitter)
++ No depende de interpolación visual
+
+Desventajas:
+- Requiere re-simular física local
+- Implementación más compleja
+
+Uso típico:
+Shooters o juegos con client prediction (Fortnite, Overwatch, Apex).
+
+
+🧠 ¿Dónde va la reconciliación?
+
+La reconciliación se realiza en el cliente: el cliente usa los datos del servidor para corregir su estado predicho.
+
+El servidor sólo envía el estado autoritativo y el último input procesado, no “hace la reconciliación por completo”.
+
+En resumen:
+
+Servidor: autoridad + envía estado.
+
+Cliente: predicción + recibe estado + aplica reconciliación.

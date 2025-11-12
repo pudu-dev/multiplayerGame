@@ -3,153 +3,153 @@ import * as THREE from "three";
 import { Socket } from "../conection/SocketConnection";
 import { KeyboardInput } from "./inputs";
 
-// ------------------------- Constantes y hooks de movimiento(mismas que en el servidor)--------------------------
-// velocidad de movimiento
+// ------------------------- Constantes compartidas (idénticas al servidor) --------------------------
 const WALK_SPEED = 2;
 const RUN_SPEED = 4;
-// salto y gravedad
 const JUMP_VELOCITY = 10;
 const GRAVITY = -9.8;
 
 // ------------------------- Hook principal para el control del jugador --------------------------
 export function usePlayerInput(playerRef, camera) {
-  //traemos los inputs del teclado
   const input = KeyboardInput();
-  // estado físico local para salto y gravedad
+
+  // estado físico local
   const velocity = useRef({ y: 0 });
   const isGrounded = useRef(true);
 
-  // server reconciliation
+  // reconciliación y predicción del cliente (server authority + client prediction)
   const seqRef = useRef(0);
-  // client prediction
-  const pendingInputs = useRef([]); // array de { seq, forward, backward, left, right, run, jump, rotation, dt }
- 
-  // --- entity interpolation para salto. Interpolación Y (servidor -> cliente)
-  const serverYRef = useRef(0);
-  const SNAP_THRESHOLD = 1.0;   // si la diferencia es mayor, forzamos snap
-  const Y_LERP = 0.2;           // factor base de lerp por frame (ajustable)
-  // --- Buffer para input de salto (evita misses por tap entre frames)
-  const jumpBufferRef = useRef(0);
-  const JUMP_BUFFER_MS = 150; // tiempo en ms que seguiremos enviando el salto tras la pulsación
-  // --- Evitar múltiples emisiones rápidas (cuando mantienes la tecla)
-  const lastJumpEmitRef = useRef(0);
-  const JUMP_EMIT_COOLDOWN_MS = 50; // cooldown entre emisiones directas
+  const pendingInputs = useRef([]);
 
-  const H_LERP = 0.15; // factor de interpolación horizontal
-
-
-  // Inicializar serverYRef con la posición actual si existe
-  useEffect(() => {
-    if (playerRef?.current) serverYRef.current = playerRef.current.position.y;
-  }, [playerRef]);
+  // buffer de snapshots del servidor (para interpolación)
+  const snapshotBuffer = useRef(new Map());
+  const MAX_BUFFER_MS = 1000;
 
   // ------------------------- Aplicar estado autoritario del servidor --------------------------
   useEffect(() => {
     const handleServerChars = (chars) => {
       if (!playerRef.current) return;
+      const now = performance.now();
+
+      // almacenamos snapshots en el buffer
+      for (const c of chars) {
+        const buf = snapshotBuffer.current.get(c.id) || [];
+        buf.push({
+          t: now,
+          position: [...c.position],
+          rotation: c.rotation,
+          velocityY: c.velocityY ?? 0,
+          isGrounded: !!c.isGrounded,
+          lastProcessedInput: c.lastProcessedInput ?? -1,
+        });
+        while (buf.length > 0 && now - buf[0].t > MAX_BUFFER_MS) buf.shift();
+        snapshotBuffer.current.set(c.id, buf);
+      }
+
+      // buscamos al jugador local
       const me = chars.find(c => c.id === Socket.id);
       if (!me) return;
-      // Actualizar posición X/Z y rotación del jugador local según el servidor
+
+      //posición y rotación actuales del jugador
       const pos = playerRef.current.position;
       const rot = playerRef.current.rotation;
-      pos.x += (me.position[0] - pos.x) * H_LERP; // interpolamos la posicion con un lerp
-      pos.z += (me.position[2] - pos.z) * H_LERP;
-      rot.y = me.rotation; // rotación directa (no interpolada)
 
-      // Guardar Y objetivo para interpolar (no forzamos snap aquí salvo gran discrepancia)
-      const serverY = me.position[1];
-      const dy = serverY - pos.y;
-      if (Math.abs(dy) > SNAP_THRESHOLD) {
-        // Snap si la discrepancia es muy grande (teletransporte)
-        pos.y = serverY;
-        serverYRef.current = serverY;
-      } else {
-        // Guardamos la Y objetivo y dejaremos que updateLocalPosition la interpole suavemente
-        serverYRef.current = serverY;
-      }
+      // ---- RECONCILIACIÓN: snap a la posición autoritativa del servidor ----
+      pos.x = me.position[0];
+      pos.y = me.position[1];
+      pos.z = me.position[2];
+      rot.y = me.rotation;
 
-      // --- Sincronizar estado vertical para reconciliación ---
-      velocity.current.y = typeof me.velocityY === "number" ? me.velocityY : velocity.current.y;
-      isGrounded.current = Boolean(me.isGrounded);
+      //  El eje Y se deja a la física local (pero actualizamos valores)
+      velocity.current.y = me.velocityY ?? velocity.current.y;
+      isGrounded.current = !!me.isGrounded;
 
-      // El servidor indica el último input procesado, usamos eso para reconciliar
-      const ack = typeof me.lastProcessedInput === "number" ? me.lastProcessedInput : -1;
-      // Eliminar inputs ya confirmados y re-aplicar el resto localmente (solo movimiento horizontal + rotación)
+      // Eliminamos inputs ya procesados por el servidor
+      const ack = me.lastProcessedInput ?? -1;
       const remaining = pendingInputs.current.filter(i => i.seq > ack);
       pendingInputs.current = remaining;
-      // Re-aplicar inputs restantes
+
+      // Re-aplicamos los inputs pendientes (client prediction reenviando la simulación local)
       for (const inp of remaining) {
-        const speed = inp.run ? RUN_SPEED : WALK_SPEED;
-        const mx = (inp.left ? 1 : 0) - (inp.right ? 1 : 0);
-        const mz = (inp.forward ? 1 : 0) - (inp.backward ? 1 : 0);
-        pos.x += mx * speed * inp.dt;
-        pos.z += mz * speed * inp.dt;
-        rot.y = inp.rotation;
+        // inp.moveX/moveZ son velocidad en world-space (unidades/segundo)
+        pos.x += (inp.moveX || 0) * inp.dt;
+        pos.z += (inp.moveZ || 0) * inp.dt;
+        // rotación visual del cliente
+        if (typeof inp.rotation === "number") rot.y = inp.rotation;
       }
     };
-    // Suscribirse a eventos "characters" del servidor
+
     Socket.on("characters", handleServerChars);
-    return () => { Socket.off("characters", handleServerChars); };
+    return () => Socket.off("characters", handleServerChars);
   }, [playerRef]);
 
-  // ------------------------- Movimiento del jugador local --------------------------
-  // la posicion local sirve para la predicción del cliente
+  // ------------------------- Movimiento local (predicción cliente) --------------------------
   const updateLocalPosition = (delta) => {
     if (!playerRef.current) return;
-
+    // posición y rotación actuales
     const pos = playerRef.current.position;
     const rot = playerRef.current.rotation;
+    // referencia de camara (para movimiento relativo)
+    const cam = camera || window.__r3f_camera;
+    if (!cam) return;
 
-    // Obtener la cámara pasada como parámetro (fallback a globals solo si es necesario)
-    const cam = camera || window.__r3f_camera || window.globalCamera;
-    if (!cam) return; // aseguramos que exista
-
-    // Calcular forward y right según la orientación de la cámara
+    // calcular dirección de movimiento relativa a la cámara
     const forward = new THREE.Vector3();
     cam.getWorldDirection(forward);
     forward.y = 0;
     forward.normalize();
-
     const right = new THREE.Vector3();
     right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
 
-    // Calcular la dirección de movimiento
     const moveDir = new THREE.Vector3();
     if (input.current.forward) moveDir.add(forward);
     if (input.current.backward) moveDir.sub(forward);
     if (input.current.left) moveDir.sub(right);
     if (input.current.right) moveDir.add(right);
 
-    // Normalizar y tomar componente XY del mundo para enviar al servidor
-    let moveX = 0, moveZ = 0;
+    // movimiento horizontal local inmediato (predicción)
+    let moveX = 0;
+    let moveZ = 0;
     if (moveDir.lengthSq() > 0) {
       moveDir.normalize();
-      moveX = moveDir.x;
-      moveZ = moveDir.z;
-    }
-
-    // ------------------------- Movimiento horizontal -------------------------
-    if (moveDir.lengthSq() > 0) {
       const speed = input.current.run ? RUN_SPEED : WALK_SPEED;
-      // Movimiento relativo a la cámara (predicción local)
+      // aplicar movimiento local
       pos.addScaledVector(moveDir, speed * delta);
-      // Rotación del jugador hacia la dirección de movimiento (world)
-      input.current.rotation = Math.atan2(moveDir.x, moveDir.z);
-      rot.y = input.current.rotation;
-    }
-    
-    // ------------------------- SALTO -------------------------
-    if (input.current.jump) {
-      jumpBufferRef.current = performance.now() + JUMP_BUFFER_MS;
-      input.current.jump = false;
-    }
-    const jumped = performance.now() < jumpBufferRef.current;
+      // calcular vector de velocidad en world-space para enviar al servidor / reutilizar en reconciliación
+      moveX = moveDir.x * speed;
+      moveZ = moveDir.z * speed;
 
-    // ------------------------- Interpolación Y -------------------------
-    const targetY = serverYRef.current;
-    const dy = targetY - pos.y;
-    const alpha = 1 - Math.pow(1 - Y_LERP, delta * 60);
-    pos.y += dy * alpha;
+      // --- Suavizar rotación en lugar de snap inmediato ---
+      const targetRotation = Math.atan2(moveDir.x, moveDir.z);
+      const lerpAngle = (a, b, t) => {
+        const diff = ((b - a + Math.PI) % (2 * Math.PI)) - Math.PI;
+        return a + diff * t;
+      };
+      const t = Math.min(1, 10 * delta); // 10 = velocidad de interpolación (ajustable)
+      input.current.rotation = lerpAngle(rot.y, targetRotation, t);
+      rot.y = input.current.rotation;
+    } else {
+      // sin movimiento, mantener velocidad 0 en XZ
+      moveX = 0;
+      moveZ = 0;
+    }
+
+    // ------------------------- Salto (idéntica lógica que el servidor) -------------------------
+    if (input.current.jump && isGrounded.current) {
+      velocity.current.y = JUMP_VELOCITY;
+      isGrounded.current = false;
+    }
+
+    // aplicar gravedad
+    velocity.current.y += GRAVITY * delta;
+    pos.y += velocity.current.y * delta;
+
+    // límite de suelo
+    if (pos.y <= 0) {
+      pos.y = 0;
+      velocity.current.y = 0;
+      isGrounded.current = true;
+    }
 
     // ------------------------- Enviar al servidor -------------------------
     const packet = {
@@ -159,50 +159,16 @@ export function usePlayerInput(playerRef, camera) {
       left: input.current.left,
       right: input.current.right,
       run: input.current.run,
-      jump: jumped,
+      jump: input.current.jump,
       rotation: input.current.rotation,
-      // enviar movimiento en coordenadas world para que servidor aplique la misma dirección
+      dt: delta,
+      // ahora enviamos la velocidad en world-space (unidades/segundo)
       moveX,
       moveZ,
-      dt: delta,
     };
     pendingInputs.current.push(packet);
     Socket.emit("move", packet);
   };
 
-  // Emisión directa en keydown (Space) para garantizar entrega rápida al servidor
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      // detectar Space (usar code para evitar problemas con layout)
-      if (e.code !== "Space") return;
-      const now = performance.now();
-      if (now - lastJumpEmitRef.current < JUMP_EMIT_COOLDOWN_MS) return;
-      lastJumpEmitRef.current = now;
-
-      // preparar paquete y emitir inmediatamente (dt = 0 porque es instantáneo)
-      const packet = {
-        seq: seqRef.current++,
-        forward: input.current.forward,
-        backward: input.current.backward,
-        left: input.current.left,
-        right: input.current.right,
-        run: input.current.run,
-        jump: true,
-        rotation: input.current.rotation,
-        dt: 0
-      };
-      pendingInputs.current.push(packet);
-      Socket.emit("move", packet);
-
-      // arrancar el latch para que los siguientes frames también consideren jump activo
-      jumpBufferRef.current = now + JUMP_BUFFER_MS;
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [ input ]);
-
-  return { updateLocalPosition, input };
+  return { updateLocalPosition, input, snapshotBuffer: snapshotBuffer.current };
 }
-
-/* ---------------------------------------------------------------------------------------------------------- */

@@ -5,164 +5,125 @@ const io = new Server({
 });
 
 io.listen(3001);
+console.log("✅ Servidor corriendo en puerto 3001");
 
-// ------------------------------ CONSTANTES DEL JUEGO-------------------------------------
+// ------------------------------ CONSTANTES DEL JUEGO -------------------------------------
 const characters = [];
-//velodidad de movimiento
-const WALK_SPEED = 2; // unidades por segundo
-const RUN_SPEED = 4;  // unidades por segundo
-//salto y gravedad
-const JUMP_VELOCITY = 10;
-const GRAVITY = -9.8;
-//limite de mapa
-const MAP_LIMIT= 25;
-const TICK_MS = 33; // ms por tick (autoritaty tick loop)
-const TICK_SEC = TICK_MS / 1000;
 
+const WALK_SPEED = 2;      // unidades por segundo
+const RUN_SPEED = 4;       // unidades por segundo
+const JUMP_VELOCITY = 10;  // fuerza del salto
+const GRAVITY = -9.8;      // aceleración hacia abajo
+const MAP_LIMIT = 25;      // límites del mapa
+const TICK_MS = 33;        // ms por tick (≈30 ticks/segundo)
+const TICK_SEC = TICK_MS / 1000; // en segundos
 
-const items= {
-  table: {
-    name: "table",
-    size: [4,4]
-  },
-  chair: {
-    name: "chair",
-    size: [1,1]
-  }
-}
+// ------------------------------ OBJETOS Y MAPA -------------------------------------------
+const items = {
+  table: { name: "table", size: [4, 4] },
+  chair: { name: "chair", size: [1, 1] },
+};
+
 const map = {
   size: [50, 50],
   gridDivision: 5,
   items: [
-    {
-      ...items.chair,
-      gridPosition: [0,0],
-      rotation: 0,
-    },
-    {
-      ...items.chair,
-      gridPosition: [5,5],
-      rotation: 0,
-    },
-    {
-      ...items.table,
-      gridPosition: [10,10],
-      rotation: 0,
-    }
-  ]
-}
-// -------------------------------------------------------------------
-// Generar una posición aleatoria dentro de los límites del mapa
+    { ...items.chair, gridPosition: [0, 0], rotation: 0 },
+    { ...items.chair, gridPosition: [5, 5], rotation: 0 },
+    { ...items.table, gridPosition: [10, 10], rotation: 0 },
+  ],
+};
+
+// ------------------------------ FUNCIONES AUXILIARES -------------------------------------
 function generateRandomPosition() {
   return [Math.random() * map.size[0], 0, Math.random() * map.size[1]];
 }
-// -------------------------------------------------------------------
-// Generar un color hexadecimal aleatorio
+
 function generateRandomHexColor() {
-  return '#' + Math.floor(Math.random() * 16777215).toString(16);
+  return "#" + Math.floor(Math.random() * 16777215).toString(16);
 }
-// ------------------------------------------------------------------------------
-// ------- Función para mover hacia un target con una velocidad dada -------------
-function moveTowards(position, target, speed) {
-  if (!target) return position;
 
-  const dx = target[0] - position[0];
-  const dz = target[2] - position[2];
-  const distance = Math.sqrt(dx * dx + dz * dz);
-
-  if (distance < speed) return [target[0], position[1], target[2]];
-
-  const nx = dx / distance;
-  const nz = dz / distance;
-
-  return [
-    position[0] + nx * speed,
-    position[1],
-    position[2] + nz * speed
-  ];
-}
-// -------------------------------------------------------------------
-// --- Lógica del servidor: Autoridad del mundo ----------------------
+// ------------------------------ LOOP DEL SERVIDOR ----------------------------------------
 setInterval(() => {
-  const delta = TICK_SEC; // tiempo fijo por tick
-  let updated = false; // bandera para saber si enviamos actualización a clientes
-  // --- Actualizar cada personaje --------
+  const delta = TICK_SEC;
+  let updated = false;
+
   for (const char of characters) {
-    const input = char.input; // { forward, backward, left, right, run, target, jump, rotation }
-    const SPEED = input.run ? RUN_SPEED : WALK_SPEED; // unidades por segundo
-    const moveAmount = SPEED * delta; // distancia a mover este tick
-    // ----- Movimiento del personaje ---
-    // Si el cliente envía moveX/moveZ usamos ese vector (world-space) para mover; si no, fallback a flags previas
-    if (typeof input.moveX === "number" && typeof input.moveZ === "number") {
-      char.position[0] += input.moveX * SPEED * delta;
-      char.position[2] += input.moveZ * SPEED * delta;
+    const input = char.input;
+    const SPEED = input.run ? RUN_SPEED : WALK_SPEED;
+
+    // ------------------ Movimiento horizontal ------------------
+    // Si el cliente envía moveX/moveZ (velocidad en world-space), úsalos
+    if (typeof input.moveX === "number" || typeof input.moveZ === "number") {
+      const mvx = input.moveX || 0;
+      const mvz = input.moveZ || 0;
+      char.position[0] += mvx * delta;
+      char.position[2] += mvz * delta;
+      // actualizar rotación si viene del cliente
+      if (typeof input.rotation === "number") char.rotation = input.rotation;
     } else {
-      // compatibilidad antigua: flags por ejes
-      if (input.forward)  char.position[2] += moveAmount;
-      if (input.backward) char.position[2] -= moveAmount;
-      if (input.left)     char.position[0] += moveAmount;
-      if (input.right)    char.position[0] -= moveAmount;
-    }
-    // -------------------------------------------------------------------
-    // Rotación: preferimos rotación enviada por cliente(si la hay), sino calculamos hacia target o dirección de movimiento
-    if (input.target) {
-      const dx = input.target[0] - char.position[0];
-      const dz = input.target[2] - char.position[2];
-      if (dx !== 0 || dz !== 0) {
-        char.rotation = Math.atan2(dx, dz); // servidor calcula hacia target
-        updated = true;
-      }
-    } else if (typeof input.rotation === "number") { 
-      char.rotation = input.rotation;
-      updated = true;
-    } else {
-      const mx = (input.left ? 1 : 0) - (input.right ? 1 : 0);
-      const mz = (input.forward ? 1 : 0) - (input.backward ? 1 : 0);
-      if (mx !== 0 || mz !== 0) {
-        char.rotation = Math.atan2(mx, mz);
-        updated = true;
+      // fallback: interpretar booleans como antes (mantener compatibilidad)
+      const moveDir = { x: 0, z: 0 };
+      if (input.forward) moveDir.z += 1;
+      if (input.backward) moveDir.z -= 1;
+      if (input.left) moveDir.x += 1;
+      if (input.right) moveDir.x -= 1;
+
+      if (moveDir.x !== 0 || moveDir.z !== 0) {
+        const len = Math.hypot(moveDir.x, moveDir.z);
+        moveDir.x /= len;
+        moveDir.z /= len;
+        char.position[0] += moveDir.x * SPEED * delta;
+        char.position[2] += moveDir.z * SPEED * delta;
+        char.rotation = Math.atan2(moveDir.x, moveDir.z);
       }
     }
-    //----------------- Salto y gravedad escalada por delta----------------------
+
+    // ------------------ Gravedad y salto ------------------
     if (input.jump && char.isGrounded) {
       char.velocityY = JUMP_VELOCITY;
       char.isGrounded = false;
-      input.jump = false;
+      input.jump = false; // evita salto continuo
     }
+
     char.velocityY += GRAVITY * delta;
     char.position[1] += char.velocityY * delta;
 
-    // usar epsilon y comprobar velocidad al aterrizar
-    const EPS = 0.01;
-    if (char.position[1] <= EPS && char.velocityY <= 0) {
+    if (char.position[1] <= 0) {
       char.position[1] = 0;
       char.velocityY = 0;
       char.isGrounded = true;
     }
-    // -------------------------------------------------------------------
-    // Límites del mapa
+
+    // ------------------ Límites del mapa ------------------
     char.position[0] = Math.max(-MAP_LIMIT, Math.min(MAP_LIMIT, char.position[0]));
     char.position[2] = Math.max(-MAP_LIMIT, Math.min(MAP_LIMIT, char.position[2]));
 
-    // Animación
+    // ------------------ Animaciones ------------------
     if (!char.isGrounded) {
       char.animation = "CharacterArmature|Jump";
     } else {
-      const moving = input.forward || input.backward || input.left || input.right || input.target;
-      char.animation = moving ? "CharacterArmature|Run" : "CharacterArmature|Idle";
+      const moving = (typeof char.input.moveX === "number" && Math.abs(char.input.moveX) > 0) ||
+                     (typeof char.input.moveZ === "number" && Math.abs(char.input.moveZ) > 0);
+      if (!moving) {
+        // fallback check with booleans
+        const boMoving = char.input.forward || char.input.backward || char.input.left || char.input.right;
+        char.animation = boMoving ? "CharacterArmature|Run" : "CharacterArmature|Idle";
+      } else {
+        char.animation = "CharacterArmature|Run";
+      }
     }
 
     updated = true;
   }
 
+  // ------------------ Emitir estado actualizado ------------------
   if (updated) io.emit("characters", characters);
 }, TICK_MS);
 
-// -----------------------------------------------------------------------------------------
-// ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-// ----------------------------- Conexión de clientes ---------------------------------------
+// ------------------------------ CONEXIONES -----------------------------------------------
 io.on("connection", (socket) => {
-  console.log("Usuario conectado con ID:", socket.id);
+  console.log("🟢 Usuario conectado:", socket.id);
 
   const newChar = {
     id: socket.id,
@@ -173,38 +134,54 @@ io.on("connection", (socket) => {
     bottomColor: generateRandomHexColor(),
     shoeColor: generateRandomHexColor(),
     animation: "CharacterArmature|Idle",
-    // añadimos moveX/moveZ para coherencia con el cliente (world-space movement)
-    input: { forward: false, backward: false, left: false, right: false, run: false, target: null, jump: false, moveX: 0, moveZ: 0 },
+    input: {
+      forward: false,
+      backward: false,
+      left: false,
+      right: false,
+      run: false,
+      jump: false,
+      moveX: 0,
+      moveZ: 0,
+      rotation: 0,
+    },
     velocityY: 0,
     isGrounded: true,
-    lastProcessedInput: -1, // para reconciliation del cliente
+    lastProcessedInput: -1, // para reconciliación
   };
+
   characters.push(newChar);
 
-  // enviar estado inicial al cliente
-  socket.emit("welcome", { id: socket.id,
-                           map,
-                           characters,
-                           items,}); 
+  // Enviar estado inicial solo a este cliente
+  socket.emit("welcome", {
+    id: socket.id,
+    map,
+    characters,
+    items,
+  });
 
-  // emitimos a todos los clientes del nuevo personaje
+  // Notificar a todos los jugadores
   io.emit("characters", characters);
 
-  // manejar inputs de movimiento desde el cliente
+  // ------------------ Manejar inputs ------------------
   socket.on("move", (input) => {
-    const character = characters.find(c => c.id === socket.id);
+    const character = characters.find((c) => c.id === socket.id);
     if (!character) return;
-      // Guardamos input y target/jump/rotation en character.input
+
+    // actualización incremental de input
+    // guardamos moveX/moveZ/rotation si vienen para usar en la simulación del servidor
     character.input = { ...character.input, ...input };
-      // Registrar seq si viene (para reconciliation del cliente)
+
+    // almacenar último input procesado (para reconciliación en cliente)
     if (typeof input.seq === "number") {
       character.lastProcessedInput = input.seq;
     }
   });
-  // manejar desconexiones
+
+  // ------------------ Desconexión ------------------
   socket.on("disconnect", () => {
-    console.log("Usuario desconectado con ID:", socket.id);
-    const index = characters.findIndex(c => c.id === socket.id);
+    console.log("🔴 Usuario desconectado:", socket.id);
+    const index = characters.findIndex((c) => c.id === socket.id);
     if (index !== -1) characters.splice(index, 1);
     io.emit("characters", characters);
   });
