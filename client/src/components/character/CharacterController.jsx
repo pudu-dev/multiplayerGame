@@ -25,6 +25,7 @@ export function usePlayerInput(playerRef, camera) {
   const snapshotBuffer = useRef(new Map());
   const MAX_BUFFER_MS = 1000;
 
+
   // ------------------------- Aplicar estado autoritario del servidor --------------------------
   useEffect(() => {
     const handleServerChars = (chars) => {

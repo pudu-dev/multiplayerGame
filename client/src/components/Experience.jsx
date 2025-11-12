@@ -11,8 +11,8 @@ import { Camera } from "./character/CameraControl";
 import Item from "./items/items.jsx";
 
 export const Experience = () => { //componente principal de la escena
-  const { camera } = useThree(); // obtener cámara del contexto R3F
 
+  const { camera } = useThree(); // obtener cámara del contexto R3F
   const [characters] = useAtom(characterAtom);
   const [myId] = useAtom(myIdAtom);
   const [map] = useAtom(mapAtom); 
@@ -21,6 +21,7 @@ export const Experience = () => { //componente principal de la escena
   useCursor(onFloor);
 
   const playerRef = useRef(null); //referencia del jugador local para el movimiento de camara y personaje
+  const camTargetRef = useRef(null); // anchor invisible para la cámara (separado del player mesh)
   const { updateLocalPosition } = usePlayerInput(playerRef, camera) // pasar la cámara al hook
 
   useFrame((state, delta) => {updateLocalPosition(delta);}); //mover jugador local cada frame
@@ -54,6 +55,8 @@ export const Experience = () => { //componente principal de la escena
           // renderiza el jugador local: group con ref; su posición la actualizamos en useFrame (client-authority)
           return (
             <group key={char.id} ref={playerRef}>
+              {/* anchor invisible para que la cámara siga establemente */}
+              <group ref={camTargetRef} position={[0, 1.6, 0]} />
               <Model
                 hairColor={char.hairColor}
                 topColor={char.topColor}
@@ -86,27 +89,5 @@ export const Experience = () => { //componente principal de la escena
   );
 };
 
-// Ejemplo de llamar a invalidate desde un hook cuando ocurre algo:
-function UseInvalidateExample() {
-  const { invalidate } = useThree()
-  useEffect(() => {
-    const onResize = () => invalidate() // invalidar solo cuando haga falta
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [invalidate])
-  return null
-}
 
-export default function ExperienceWrapper(props) {
-  return (
-    <Canvas
-      frameloop="demand"                // render solo cuando se llame invalidate()
-      dpr={[1, 1.5]}                    // limitar pixelRatio (ajusta según prueba)
-      gl={{ antialias: true, powerPreference: 'high-performance' }}
-      shadows={false}                   // prueba desactivar sombras o limitar
-    >
-      <Experience {...props} />
-      <UseInvalidateExample />
-    </Canvas>
-  )
-}
+

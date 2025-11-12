@@ -1,3 +1,18 @@
+/* ===========================================================
+🌐 SERVIDOR DE JUEGO - SERVER AUTHORITY + CLIENT PREDICTION
+============================================================
+
+Estructura:
+- El servidor mantiene el estado autoritativo de todos los jugadores.
+- Los clientes envían sus inputs (posición, dirección, salto, etc).
+- El servidor simula física simple (gravedad, límites, velocidad).
+- Cada tick (≈30 FPS) se envía el estado actualizado a todos los clientes.
+- El cliente realiza reconciliación local e interpolación remota.
+
+------------------------------------------------------------
+📦 ARCHIVO: server.js
+------------------------------------------------------------ */
+
 import { Server } from "socket.io";
 
 const io = new Server({
@@ -10,12 +25,12 @@ console.log("✅ Servidor corriendo en puerto 3001");
 // ------------------------------ CONSTANTES DEL JUEGO -------------------------------------
 const characters = [];
 
-const WALK_SPEED = 2;      // unidades por segundo
-const RUN_SPEED = 4;       // unidades por segundo
+const WALK_SPEED = 2;      // unidades/seg
+const RUN_SPEED = 4;       // unidades/seg
 const JUMP_VELOCITY = 10;  // fuerza del salto
-const GRAVITY = -9.8;      // aceleración hacia abajo
+const GRAVITY = -9.8;      // aceleración vertical
 const MAP_LIMIT = 25;      // límites del mapa
-const TICK_MS = 33;        // ms por tick (≈30 ticks/segundo)
+const TICK_MS = 33;        // ms por tick (~30 ticks/s)
 const TICK_SEC = TICK_MS / 1000; // en segundos
 
 // ------------------------------ OBJETOS Y MAPA -------------------------------------------
@@ -53,16 +68,17 @@ setInterval(() => {
     const SPEED = input.run ? RUN_SPEED : WALK_SPEED;
 
     // ------------------ Movimiento horizontal ------------------
-    // Si el cliente envía moveX/moveZ (velocidad en world-space), úsalos
+    // Si el cliente envía moveX/moveZ (en world-space), usar esos valores
     if (typeof input.moveX === "number" || typeof input.moveZ === "number") {
       const mvx = input.moveX || 0;
       const mvz = input.moveZ || 0;
       char.position[0] += mvx * delta;
       char.position[2] += mvz * delta;
-      // actualizar rotación si viene del cliente
+
+      // Actualizar rotación si viene del cliente
       if (typeof input.rotation === "number") char.rotation = input.rotation;
     } else {
-      // fallback: interpretar booleans como antes (mantener compatibilidad)
+      // Fallback: interpretar los booleanos forward/backward/left/right
       const moveDir = { x: 0, z: 0 };
       if (input.forward) moveDir.z += 1;
       if (input.backward) moveDir.z -= 1;
@@ -106,7 +122,7 @@ setInterval(() => {
       const moving = (typeof char.input.moveX === "number" && Math.abs(char.input.moveX) > 0) ||
                      (typeof char.input.moveZ === "number" && Math.abs(char.input.moveZ) > 0);
       if (!moving) {
-        // fallback check with booleans
+        // fallback check con booleanos
         const boMoving = char.input.forward || char.input.backward || char.input.left || char.input.right;
         char.animation = boMoving ? "CharacterArmature|Run" : "CharacterArmature|Idle";
       } else {
@@ -118,7 +134,9 @@ setInterval(() => {
   }
 
   // ------------------ Emitir estado actualizado ------------------
-  if (updated) io.emit("characters", characters);
+  if (updated) {
+    io.emit("characters", characters);
+  }
 }, TICK_MS);
 
 // ------------------------------ CONEXIONES -----------------------------------------------
@@ -147,12 +165,12 @@ io.on("connection", (socket) => {
     },
     velocityY: 0,
     isGrounded: true,
-    lastProcessedInput: -1, // para reconciliación
+    lastProcessedInput: -1, // 🧠 usado para reconciliación
   };
 
   characters.push(newChar);
 
-  // Enviar estado inicial solo a este cliente
+  // Enviar estado inicial solo al nuevo jugador
   socket.emit("welcome", {
     id: socket.id,
     map,
@@ -168,11 +186,10 @@ io.on("connection", (socket) => {
     const character = characters.find((c) => c.id === socket.id);
     if (!character) return;
 
-    // actualización incremental de input
-    // guardamos moveX/moveZ/rotation si vienen para usar en la simulación del servidor
+    // Actualizar inputs
     character.input = { ...character.input, ...input };
 
-    // almacenar último input procesado (para reconciliación en cliente)
+    // Registrar último input procesado
     if (typeof input.seq === "number") {
       character.lastProcessedInput = input.seq;
     }
@@ -186,3 +203,14 @@ io.on("connection", (socket) => {
     io.emit("characters", characters);
   });
 });
+
+/* ------------------------------------------------------------
+💡 NOTAS:
+------------------------------------------------------------
+✅ Este servidor usa "server authority" — los clientes no deciden posiciones finales.  
+✅ Envía "lastProcessedInput" → permite al cliente aplicar reconciliación.  
+✅ No necesita interpolación aquí (solo en el cliente).  
+✅ En el cliente:  
+   - Jugador local → Client Prediction + Reconciliación.  
+   - Jugadores remotos → Interpolación de snapshots.
+ */

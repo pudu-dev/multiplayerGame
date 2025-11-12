@@ -7,6 +7,7 @@ CameraControls.install({ THREE }); // usamos la librería camera-controls
 
 export function Camera({ 
   playerRef,
+  targetRef, // nuevo prop: si se pasa, la cámara sigue este anchor en vez del player directo
   offset = new THREE.Vector3(0, 5, -8),
   lookAtOffset = new THREE.Vector3(0, 1.5, 0),
   toggleKey = "c",
@@ -46,17 +47,18 @@ export function Camera({
 
   // Update loop principal
   useFrame((_, delta) => {
-    if (!playerRef?.current) return;
-    const player = playerRef.current;
-    const target = player.position.clone().add(lookAtOffset);
+    const anchorObj = (targetRef && targetRef.current) || (playerRef && playerRef.current);
+    if (!anchorObj) return;
+    const target = anchorObj.position.clone().add(lookAtOffset);
     window.__r3f_camera = camera;
 
     if (!isFreeView) {
       // ----------------------------------------------
-      // FOLLOW CAMERA 
+      // FOLLOW CAMERA (sin rotación del offset)
       // ----------------------------------------------
-      const rotatedOffset = offset.clone();
-      const desiredPos = player.position.clone().add(rotatedOffset);
+      // Usar offset fijo en world-space (no girar según la rotación del jugador)
+      const desiredPos = anchorObj.position.clone().add(offset);
+
       // Lerp con suavizado independiente en Y
       const horizontalSmooth = smoothFollow;
       const verticalSmooth = Math.min(0.35, Math.max(0.12, smoothFollow * 3));
