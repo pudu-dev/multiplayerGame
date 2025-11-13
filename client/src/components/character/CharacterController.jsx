@@ -9,6 +9,11 @@ const RUN_SPEED = 4;
 const JUMP_VELOCITY = 10;
 const GRAVITY = -9.8;
 
+// --- Añadidos mínimos para reconciliación suave ---
+const SERVER_TICK = 33 / 1000; // debe coincidir con server TICK_MS
+const SMOOTH_FACTOR = 0.16;    // ajustar 0.08..0.35 según gusto
+const SNAP_THRESHOLD = 0.6;    // distancia para snap inmediato
+
 // ------------------------- Hook principal para el control del jugador --------------------------
 export function usePlayerInput(playerRef, camera) {
   const input = KeyboardInput();
@@ -21,10 +26,14 @@ export function usePlayerInput(playerRef, camera) {
   const seqRef = useRef(0);
   const pendingInputs = useRef([]);
 
+  // refs para corrección suave desde el servidor (no cambia estructura principal)
+  const serverTargetPos = useRef(new THREE.Vector3());
+  const serverTargetRotY = useRef(0);
+  const needCorrection = useRef(false);
+
   // buffer de snapshots del servidor (para interpolación)
   const snapshotBuffer = useRef(new Map());
   const MAX_BUFFER_MS = 1000;
-
 
   // ------------------------- Aplicar estado autoritario del servidor --------------------------
   useEffect(() => {
@@ -51,33 +60,47 @@ export function usePlayerInput(playerRef, camera) {
       const me = chars.find(c => c.id === Socket.id);
       if (!me) return;
 
-      //posición y rotación actuales del jugador
-      const pos = playerRef.current.position;
-      const rot = playerRef.current.rotation;
+      // --- NUEVO: NO hacer snap directo ---
+      // Construimos un target corregido: posición del servidor + re-aplicar pendingInputs usando SERVER_TICK
+      const serverPos = new THREE.Vector3(me.position[0], me.position[1], me.position[2]);
 
-      // ---- RECONCILIACIÓN: snap a la posición autoritativa del servidor ----
-      pos.x = me.position[0];
-      pos.y = me.position[1];
-      pos.z = me.position[2];
-      rot.y = me.rotation;
+      // sincronizar estado vertical base para la reconstrucción del target
+      let simVelY = me.velocityY ?? velocity.current.y;
+      let simGrounded = !!me.isGrounded;
 
-      //  El eje Y se deja a la física local (pero actualizamos valores)
-      velocity.current.y = me.velocityY ?? velocity.current.y;
-      isGrounded.current = !!me.isGrounded;
-
-      // Eliminamos inputs ya procesados por el servidor
+      // determinar inputs no ACKed
       const ack = me.lastProcessedInput ?? -1;
       const remaining = pendingInputs.current.filter(i => i.seq > ack);
-      pendingInputs.current = remaining;
 
-      // Re-aplicamos los inputs pendientes (client prediction reenviando la simulación local)
+      // re-aplicar pending inputs con paso del servidor para obtener posición objetivo
+      const corrected = serverPos.clone();
       for (const inp of remaining) {
-        // inp.moveX/moveZ son velocidad en world-space (unidades/segundo)
-        pos.x += (inp.moveX || 0) * inp.dt;
-        pos.z += (inp.moveZ || 0) * inp.dt;
-        // rotación visual del cliente
-        if (typeof inp.rotation === "number") rot.y = inp.rotation;
+        corrected.x += (inp.moveX || 0) * SERVER_TICK;
+        corrected.z += (inp.moveZ || 0) * SERVER_TICK;
+
+        // reproducir salto/gravedad para Y en el target
+        if (inp.jump && simGrounded) {
+          simVelY = JUMP_VELOCITY;
+          simGrounded = false;
+        }
+        simVelY += GRAVITY * SERVER_TICK;
+        corrected.y += simVelY * SERVER_TICK;
+        if (corrected.y <= 0) {
+          corrected.y = 0;
+          simVelY = 0;
+          simGrounded = true;
+        }
       }
+
+      // guardar target y marcar corrección; no tocar playerRef.position aquí
+      serverTargetPos.current.copy(corrected);
+      serverTargetRotY.current = me.rotation;
+      needCorrection.current = true;
+
+      // sincronizar estado vertical base y actualizar pendingInputs (sin mover la entidad)
+      velocity.current.y = me.velocityY ?? velocity.current.y;
+      isGrounded.current = !!me.isGrounded;
+      pendingInputs.current = remaining;
     };
 
     Socket.on("characters", handleServerChars);
@@ -119,15 +142,7 @@ export function usePlayerInput(playerRef, camera) {
       // calcular vector de velocidad en world-space para enviar al servidor / reutilizar en reconciliación
       moveX = moveDir.x * speed;
       moveZ = moveDir.z * speed;
-
-      // --- Suavizar rotación en lugar de snap inmediato ---
-      const targetRotation = Math.atan2(moveDir.x, moveDir.z);
-      const lerpAngle = (a, b, t) => {
-        const diff = ((b - a + Math.PI) % (2 * Math.PI)) - Math.PI;
-        return a + diff * t;
-      };
-      const t = Math.min(1, 10 * delta); // 10 = velocidad de interpolación (ajustable)
-      input.current.rotation = lerpAngle(rot.y, targetRotation, t);
+      input.current.rotation = Math.atan2(moveDir.x, moveDir.z);
       rot.y = input.current.rotation;
     } else {
       // sin movimiento, mantener velocidad 0 en XZ
@@ -150,6 +165,26 @@ export function usePlayerInput(playerRef, camera) {
       pos.y = 0;
       velocity.current.y = 0;
       isGrounded.current = true;
+    }
+
+    // ---- Corrección suave aplicada por frame: lerp hacia serverTargetPos si es necesario ----
+    if (needCorrection.current) {
+      const target = serverTargetPos.current;
+      const err = target.clone().sub(pos);
+      const errLen = err.length();
+      if (errLen > SNAP_THRESHOLD) {
+        // discrepancia grande -> snap inmediato
+        pos.copy(target);
+        rot.y = serverTargetRotY.current;
+        needCorrection.current = false;
+      } else {
+        // lerp framerate-independiente
+        const alpha = 1 - Math.pow(1 - SMOOTH_FACTOR, delta * 60);
+        pos.lerp(target, alpha);
+        // suavizar rotación hacia la del servidor
+        rot.y += ((serverTargetRotY.current - rot.y + Math.PI) % (2 * Math.PI) - Math.PI) * alpha;
+        if (pos.distanceTo(target) < 0.01) needCorrection.current = false;
+      }
     }
 
     // ------------------------- Enviar al servidor -------------------------
