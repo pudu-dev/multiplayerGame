@@ -15,6 +15,10 @@ const SERVER_TICK = 33 / 1000; // debe coincidir con server TICK_MS
 const SMOOTH_FACTOR = 0.16;    // ajustar 0.08..0.35 según gusto
 const SNAP_THRESHOLD = 0.6;    // distancia para snap inmediato
 
+// NUEVO: distancia del crosshair desde la cámara (ajustable)
+export const CROSSHAIR_DISTANCE = 20;
+const MOUSE_ROTATION_SMOOTH = 0.18; // suavizado al rotar hacia el crosshair
+
 // ------------------------- Hook principal para el control del jugador --------------------------
 export function usePlayerInput(playerRef, camera) {
   const input = KeyboardInput();
@@ -124,6 +128,8 @@ export function usePlayerInput(playerRef, camera) {
     forward.y = 0;
     forward.normalize();
     const right = new THREE.Vector3();
+    // CORRECCIÓN: usar up x forward para obtener el vector RIGHT correcto
+    // RIGHT = forward x up
     right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
 
     const moveDir = new THREE.Vector3();
@@ -135,6 +141,8 @@ export function usePlayerInput(playerRef, camera) {
     // movimiento horizontal local inmediato (predicción)
     let moveX = 0;
     let moveZ = 0;
+    // yaw derivado del movimiento del teclado (null si no hay movimiento)
+    let movementYaw = null;
     if (moveDir.lengthSq() > 0) {
       moveDir.normalize();
       const speed = input.current.run ? RUN_SPEED : WALK_SPEED;
@@ -143,8 +151,9 @@ export function usePlayerInput(playerRef, camera) {
       // calcular vector de velocidad en world-space para enviar al servidor / reutilizar en reconciliación
       moveX = moveDir.x * speed;
       moveZ = moveDir.z * speed;
-      input.current.rotation = Math.atan2(moveDir.x, moveDir.z);
-      rot.y = input.current.rotation;
+      // calcular yaw de movimiento y mantenerlo (compatibilidad con código previo)
+      movementYaw = Math.atan2(moveDir.x, moveDir.z);
+      input.current.rotation = movementYaw;
     } else {
       // sin movimiento, mantener velocidad 0 en XZ
       moveX = 0;
@@ -188,6 +197,22 @@ export function usePlayerInput(playerRef, camera) {
       }
     }
 
+    // ------------------------- Orientación hacia el crosshair (punto en la dirección de la cámara) -------------------------
+    // calcular punto objetivo en la dirección de la cámara a distancia configurable
+    const camDir = new THREE.Vector3();
+    cam.getWorldDirection(camDir);
+    const lookPoint = cam.position.clone().add(camDir.multiplyScalar(CROSSHAIR_DISTANCE));
+    // calcular yaw objetivo (atan2 usando (dx, dz))
+    const dx = lookPoint.x - pos.x;
+    const dz = lookPoint.z - pos.z;
+    // si hay movimiento por teclado, preferimos esa dirección; si no, usar crosshair
+    let targetYaw = movementYaw !== null ? movementYaw : Math.atan2(dx, dz);
+
+    // suavizar rotación hacia targetYaw (usar el método de diferencia angular más corta)
+    const diff = ((targetYaw - rot.y + Math.PI) % (2 * Math.PI)) - Math.PI;
+    const rAlpha = 1 - Math.pow(1 - MOUSE_ROTATION_SMOOTH, delta * 60);
+    rot.y += diff * rAlpha;
+
     // ------------------------- Enviar al servidor -------------------------
     const packet = {
       seq: seqRef.current++,
@@ -197,7 +222,7 @@ export function usePlayerInput(playerRef, camera) {
       right: input.current.right,
       run: input.current.run,
       jump: input.current.jump,
-      rotation: input.current.rotation,
+      rotation: rot.y, // enviar la rotación actual del jugador
       dt: delta,
       // ahora enviamos la velocidad en world-space (unidades/segundo)
       moveX,

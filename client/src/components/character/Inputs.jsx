@@ -9,7 +9,7 @@ export function KeyboardInput() {
     right: false,
     run: false,
     jump: false,
-    rotation: false,
+    rotation: 0,
 
   });
 
@@ -44,5 +44,23 @@ export function KeyboardInput() {
     };
   }, []);
 
+  return input;
+}
+
+export function MouseInput() {
+  const input = useRef({
+    deltaX: 0,
+    deltaY: 0,
+  });
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      input.current.deltaX += e.movementX;
+      input.current.deltaY += e.movementY;
+    }
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+    };
+  }, []);
   return input;
 }

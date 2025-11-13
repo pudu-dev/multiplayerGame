@@ -35,7 +35,7 @@ export const Experience = () => { //componente principal de la escena
     <>
       {/* camara que sigue al jugador local */}
       <Camera playerRef={playerRef}/> 
-
+      
       {/* mapa y luces */}
       <color attach="background" args={["#8b8b8b"]} />
       <directionalLight intensity={1} position={[25, 18, -25]} castShadow />

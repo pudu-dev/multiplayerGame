@@ -12,11 +12,18 @@ export function Camera({
   lookAtOffset = new THREE.Vector3(0, 1.5, 0),
   toggleKey = "c",
   smoothFollow = 0.1,
+  mouseSensitivity = 0.0025, // NUEVO: sensibilidad del mouse para follow
+  minPitch = -0.6,
+  maxPitch = 0.6,
 }) {
   const { camera, gl } = useThree();
   const controls = useRef();
   const [isFreeView, setIsFreeView] = useState(false);
   const currentLookAt = useRef(new THREE.Vector3());
+
+  // NEW: yaw/pitch control while following
+  const yaw = useRef(0);   // radians, applied to offset around Y
+  const pitch = useRef(0); // radians, applied to vertical rotation of offset
 
   // Inicializar CameraControls
   useEffect(() => {
@@ -45,6 +52,20 @@ export function Camera({
     return () => window.removeEventListener("keydown", handleKey);
   }, [toggleKey]);
 
+  // Listener global de mouse para ajustar yaw/pitch cuando NO estamos en free view
+  useEffect(() => {
+    const handleMove = (e) => {
+      if (isFreeView) return;
+      // usar movementX/movementY para obtener delta relativo (recomendable con pointer lock).
+      yaw.current -= e.movementX * mouseSensitivity;
+      pitch.current -= e.movementY * mouseSensitivity;
+      // limitar pitch
+      pitch.current = Math.max(minPitch, Math.min(maxPitch, pitch.current));
+    };
+    window.addEventListener("mousemove", handleMove);
+    return () => window.removeEventListener("mousemove", handleMove);
+  }, [isFreeView, mouseSensitivity, minPitch, maxPitch]);
+
   // Update loop principal
   useFrame((_, delta) => {
     const anchorObj = (targetRef && targetRef.current) || (playerRef && playerRef.current);
@@ -52,12 +73,24 @@ export function Camera({
     const target = anchorObj.position.clone().add(lookAtOffset);
     window.__r3f_camera = camera;
 
+    // Exponer yaw/pitch para que otros sistemas (character) puedan leer el objetivo de la cámara
+    window.__cameraYaw = yaw.current;
+    window.__cameraPitch = pitch.current;
+
     if (!isFreeView) {
       // ----------------------------------------------
-      // FOLLOW CAMERA (sin rotación del offset)
+      // FOLLOW CAMERA (ahora con rotación por mouse)
       // ----------------------------------------------
-      // Usar offset fijo en world-space (no girar según la rotación del jugador)
-      const desiredPos = anchorObj.position.clone().add(offset);
+      // Construir offset rotado por yaw + pitch
+      const rotOffset = offset.clone();
+      // aplicar pitch sobre eje local X del offset (eje lateral)
+      const pitchQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), pitch.current);
+      rotOffset.applyQuaternion(pitchQuat);
+      // aplicar yaw alrededor de Y
+      const yawQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw.current);
+      rotOffset.applyQuaternion(yawQuat);
+
+      const desiredPos = anchorObj.position.clone().add(rotOffset);
 
       // Lerp con suavizado independiente en Y
       const horizontalSmooth = smoothFollow;

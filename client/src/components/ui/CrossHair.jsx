@@ -1,26 +1,59 @@
 // Crosshair.jsx
-export default function Crosshair({ size = 24 }) {
-  const style = {
-    position: "fixed",
-    left: "50%",
-    top: "50%",
-    transform: "translate(-50%, -50%)",
-    width: `${size}px`,
-    height: `${size}px`,
-    pointerEvents: "none",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 9999,
-  };
-  const lineStyle = {
-    position: "absolute",
-    background: "white",
-  };
+export default function Crosshair({ size = 24, color = "white" }) {
+  const half = size / 2;
+
   return (
-    <div style={style}>
-      <div style={{ ...lineStyle, width: 2, height: size / 2, transform: `translateY(-${size/4}px)` }} />
-      <div style={{ ...lineStyle, height: 2, width: size / 2, transform: `translateX(-${size/4}px)` }} />
+    <div
+      className="fixed left-1/2 top-1/2 pointer-events-none z-100"
+      style={{ transform: "translate(-50%, -50%)" }}
+    >
+      {/* Línea superior */}
+      <div
+        className="absolute left-1/2 bg-white"
+        style={{
+          width: "2px",
+          height: `${half}px`,
+          top: `-${size}px`,
+          transform: "translateX(-50%)",
+          backgroundColor: color,
+        }}
+      />
+
+      {/* Línea inferior */}
+      <div
+        className="absolute left-1/2 bg-white"
+        style={{
+          width: "2px",
+          height: `${half}px`,
+          bottom: `-${size}px`,
+          transform: "translateX(-50%)",
+          backgroundColor: color,
+        }}
+      />
+
+      {/* Línea izquierda */}
+      <div
+        className="absolute top-1/2 bg-white"
+        style={{
+          height: "2px",
+          width: `${half}px`,
+          left: `-${size}px`,
+          transform: "translateY(-50%)",
+          backgroundColor: color,
+        }}
+      />
+
+      {/* Línea derecha */}
+      <div
+        className="absolute top-1/2 bg-white"
+        style={{
+          height: "2px",
+          width: `${half}px`,
+          right: `-${size}px`,
+          transform: "translateY(-50%)",
+          backgroundColor: color,
+        }}
+      />
     </div>
   );
 }

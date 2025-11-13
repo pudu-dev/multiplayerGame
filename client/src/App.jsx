@@ -6,6 +6,7 @@ import { KeyboardControls , Stats } from "@react-three/drei";
 import HUD from "./components/ui/HUD";
 import RAPIER from '@dimforge/rapier3d-compat';
 import { Physics } from "@react-three/rapier";
+import Crosshair from "./components/ui/CrossHair";
 
 const keyboardMap = [
   { name: "forward", keys: ["ArrowUp", "KeyW"] },
@@ -43,6 +44,7 @@ export default function App() {
               </button>
 
               <HUD />
+              <Crosshair size={40} />
               
               <KeyboardControls map={keyboardMap}>
                 <SocketManager />
