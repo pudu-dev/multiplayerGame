@@ -40,6 +40,10 @@ export function usePlayerInput(playerRef, camera) {
   const snapshotBuffer = useRef(new Map());
   const MAX_BUFFER_MS = 1000;
 
+  // NUEVO: recordar la última orientación hacia la que miró el jugador
+  const lastFacingYaw = useRef(null); // null = aún no inicializado
+  const prevCamYaw = useRef(null);
+
   // ------------------------- Aplicar estado autoritario del servidor --------------------------
   useEffect(() => {
     const handleServerChars = (chars) => {
@@ -205,8 +209,41 @@ export function usePlayerInput(playerRef, camera) {
     // calcular yaw objetivo (atan2 usando (dx, dz))
     const dx = lookPoint.x - pos.x;
     const dz = lookPoint.z - pos.z;
-    // si hay movimiento por teclado, preferimos esa dirección; si no, usar crosshair
-    let targetYaw = movementYaw !== null ? movementYaw : Math.atan2(dx, dz);
+
+    // determinar yaw objetivo pero recordar la última orientación cuando no hay entrada activa
+    let targetYaw;
+
+    // obtener yaw de la cámara si está expuesto por CameraControl
+    const camYaw = (typeof window.__cameraYaw === "number") ? window.__cameraYaw : null;
+
+    // inicializar lastFacingYaw la primera vez
+    if (lastFacingYaw.current === null) lastFacingYaw.current = rot.y;
+
+    if (movementYaw !== null) {
+      // movimiento por teclado prevalece: actualizar memoria y usarla
+      lastFacingYaw.current = movementYaw;
+      targetYaw = movementYaw;
+    } else {
+      // sin movimiento: calcular yaw hacia el punto del crosshair
+      const lookYaw = Math.atan2(dx, dz);
+
+      // detectar si el jugador está 'apuntando' moviendo la cámara (por cambio de camYaw)
+      const camMoved = (camYaw !== null && prevCamYaw.current !== null) && Math.abs(camYaw - prevCamYaw.current) > 0.0009;
+      if (camMoved) {
+        // si la cámara se movió, actualizamos la memoria hacia el nuevo lookYaw
+        lastFacingYaw.current = lookYaw;
+      } else {
+        // si prevCamYaw aún no estaba inicializado pero sí hay camYaw, consideramos que el jugador empezó a mirar y actualizamos
+        if (camYaw !== null && prevCamYaw.current === null) {
+          lastFacingYaw.current = lookYaw;
+        }
+        // en caso contrario no tocamos lastFacingYaw (recordará la última)
+      }
+      targetYaw = lastFacingYaw.current;
+    }
+
+    // guardar camYaw para detectar cambios en el siguiente frame
+    prevCamYaw.current = camYaw;
 
     // suavizar rotación hacia targetYaw (usar el método de diferencia angular más corta)
     const diff = ((targetYaw - rot.y + Math.PI) % (2 * Math.PI)) - Math.PI;
