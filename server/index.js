@@ -27,8 +27,8 @@ const characters = [];
 
 const WALK_SPEED = 2;      // unidades/seg
 const RUN_SPEED = 4;       // unidades/seg
-const JUMP_VELOCITY = 10;  // fuerza del salto
-const GRAVITY = -9.8;      // aceleración vertical
+const JUMP_VELOCITY = 5;  // fuerza del salto
+const GRAVITY = -10;      // aceleración vertical
 const MAP_LIMIT = 25;      // límites del mapa
 const TICK_MS = 33;        // ms por tick (~30 ticks/s)
 const TICK_SEC = TICK_MS / 1000; // en segundos
