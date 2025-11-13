@@ -2,20 +2,11 @@ import { Suspense, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Experience } from "./components/Experience";
 import { SocketManager } from "./components/conection/SocketManager";
-import { KeyboardControls , Stats } from "@react-three/drei";
+import { Stats } from "@react-three/drei";
 import HUD from "./components/ui/HUD";
 import RAPIER from '@dimforge/rapier3d-compat';
 import { Physics } from "@react-three/rapier";
 import Crosshair from "./components/ui/CrossHair";
-
-const keyboardMap = [
-  { name: "forward", keys: ["ArrowUp", "KeyW"] },
-  { name: "backward", keys: ["ArrowDown", "KeyS"] },
-  { name: "left", keys: ["ArrowLeft", "KeyA"] },
-  { name: "right", keys: ["ArrowRight", "KeyD"] },
-  { name: "run", keys: ["ShiftLeft", "ShiftRight"] },
-  { name: "jump", keys: ["Space"],  },
-];
 
 export default function App() {
   const [gameState, setGameState] = useState("start");
@@ -44,25 +35,23 @@ export default function App() {
               </button>
 
               <HUD />
-              <Crosshair size={40} />
-              
-              <KeyboardControls map={keyboardMap}>
-                <SocketManager />
-                <Canvas
-                  shadows={false}                             // reducir costo de sombras
-                  dpr={[1, 1.5]}                              // limitar pixelRatio
-                  gl={{ antialias: true, powerPreference: 'high-performance' }} // favorecer perf
-                  camera={{ position: [8, 8, 8], fov: 30 }}
-                  style={{ touchAction: "none" }}
-                >
+              <SocketManager />
+              <Canvas
+                shadows={false}                             // reducir costo de sombras
+                dpr={[1, 1.5]}                              // limitar pixelRatio
+                gl={{ antialias: true, powerPreference: 'high-performance' }} // favorecer perf
+                camera={{ position: [8, 8, 8], fov: 30 }}
+                style={{ touchAction: "none" }}
+              >
                 <Suspense fallback={null}>
+                  <Crosshair size={0.6} color="white" />
                   <Physics gravity={[0, -9.81, 0]} debug={false}> {/* debug true es caro */}
                     <Stats /> 
                     <Experience />
                   </Physics>
                 </Suspense >
-                </Canvas>
-              </KeyboardControls>
+              </Canvas>
+              <SocketManager />
             </>
           )}
         </div>

@@ -58,7 +58,7 @@ export function Camera({
       if (isFreeView) return;
       // usar movementX/movementY para obtener delta relativo (recomendable con pointer lock).
       yaw.current -= e.movementX * mouseSensitivity;
-      pitch.current -= e.movementY * mouseSensitivity;
+      pitch.current += e.movementY * mouseSensitivity;
       // limitar pitch
       pitch.current = Math.max(minPitch, Math.min(maxPitch, pitch.current));
     };

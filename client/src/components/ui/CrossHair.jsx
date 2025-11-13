@@ -1,59 +1,110 @@
 // Crosshair.jsx
-export default function Crosshair({ size = 24, color = "white" }) {
-  const half = size / 2;
+import React, { useRef, useEffect } from "react";
+import { useThree, useFrame } from "@react-three/fiber";
+import * as THREE from "three";
+import { CROSSHAIR_DISTANCE } from "../character/CharacterController";
+
+/**
+ * Crosshair 3D: se posiciona frente a la cámara a CROSSHAIR_DISTANCE (con profundidad/oclusiones).
+ * size: diámetro del anillo en unidades del mundo
+ * gap/thickness: para las líneas
+ *
+ * Ahora incluye Pointer Lock directamente: click en el canvas solicitará pointer lock y
+ * se emitirá evento 'pointerLockChanged' con { detail: { locked } }.
+ */
+export default function Crosshair({
+  size = 0.6,
+  color = "white",
+  gap = 0.18,
+  thickness = 0.03,
+}) {
+  const group = useRef();
+  const { camera, gl } = useThree();
+
+  // geometrías/meshes reusables
+  const inner = Math.max(0.02, size * 0.36);
+  const outer = size / 2;
+
+  // Pointer Lock: attach to canvas inside the Canvas (must be called on user gesture)
+  useEffect(() => {
+    const canvas = gl?.domElement;
+    if (!canvas) return;
+
+    const handleClick = () => {
+      // requestPointerLock requires a user gesture
+      if (document.pointerLockElement !== canvas) {
+        canvas.requestPointerLock();
+      }
+    };
+
+    const handlePointerLockChange = () => {
+      const locked = document.pointerLockElement === canvas;
+      if (locked) document.body.classList.add("pointer-locked");
+      else document.body.classList.remove("pointer-locked");
+      window.dispatchEvent(new CustomEvent("pointerLockChanged", { detail: { locked } }));
+    };
+
+    canvas.addEventListener("click", handleClick);
+    document.addEventListener("pointerlockchange", handlePointerLockChange);
+
+    return () => {
+      canvas.removeEventListener("click", handleClick);
+      document.removeEventListener("pointerlockchange", handlePointerLockChange);
+      document.body.classList.remove("pointer-locked");
+    };
+  }, [gl]);
+
+  useFrame(() => {
+    if (!group.current) return;
+    // posicionar en frente de la cámara
+    const dir = new THREE.Vector3();
+    camera.getWorldDirection(dir);
+    group.current.position.copy(camera.position).add(dir.multiplyScalar(CROSSHAIR_DISTANCE));
+    // orientar para que siempre mire a la cámara (billboard)
+    group.current.quaternion.copy(camera.quaternion);
+  });
+
+  // Material básico; depthTest true => será ocultado por objetos entre cámara y crosshair
+  const matProps = { color, transparent: true, depthTest: true, depthWrite: false };
 
   return (
-    <div
-      className="fixed left-1/2 top-1/2 pointer-events-none z-100"
-      style={{ transform: "translate(-50%, -50%)" }}
-    >
-      {/* Línea superior */}
-      <div
-        className="absolute left-1/2 bg-white"
-        style={{
-          width: "2px",
-          height: `${half}px`,
-          top: `-${size}px`,
-          transform: "translateX(-50%)",
-          backgroundColor: color,
-        }}
-      />
+    <group ref={group} renderOrder={0} visible>
+      {/* Ring */}
+      <mesh>
+        <ringGeometry args={[inner, outer, 64]} />
+        <meshBasicMaterial {...matProps} />
+      </mesh>
 
-      {/* Línea inferior */}
-      <div
-        className="absolute left-1/2 bg-white"
-        style={{
-          width: "2px",
-          height: `${half}px`,
-          bottom: `-${size}px`,
-          transform: "translateX(-50%)",
-          backgroundColor: color,
-        }}
-      />
+      {/* Central dot */}
+      <mesh position={[0, 0, 0.001]}>
+        <circleGeometry args={[Math.max(0.01, thickness * 0.6), 32]} />
+        <meshBasicMaterial {...matProps} />
+      </mesh>
 
-      {/* Línea izquierda */}
-      <div
-        className="absolute top-1/2 bg-white"
-        style={{
-          height: "2px",
-          width: `${half}px`,
-          left: `-${size}px`,
-          transform: "translateY(-50%)",
-          backgroundColor: color,
-        }}
-      />
+      {/* 4 líneas (top,bottom,left,right) */}
+      {/* Top */}
+      <mesh position={[0, outer + gap + thickness / 2, 0.001]}>
+        <boxGeometry args={[thickness, gap + thickness, 0.01]} />
+        <meshBasicMaterial {...matProps} />
+      </mesh>
 
-      {/* Línea derecha */}
-      <div
-        className="absolute top-1/2 bg-white"
-        style={{
-          height: "2px",
-          width: `${half}px`,
-          right: `-${size}px`,
-          transform: "translateY(-50%)",
-          backgroundColor: color,
-        }}
-      />
-    </div>
+      {/* Bottom */}
+      <mesh position={[0, -(outer + gap + thickness / 2), 0.001]}>
+        <boxGeometry args={[thickness, gap + thickness, 0.01]} />
+        <meshBasicMaterial {...matProps} />
+      </mesh>
+
+      {/* Left */}
+      <mesh position={[-(outer + gap + thickness / 2), 0, 0.001]}>
+        <boxGeometry args={[gap + thickness, thickness, 0.01]} />
+        <meshBasicMaterial {...matProps} />
+      </mesh>
+
+      {/* Right */}
+      <mesh position={[(outer + gap + thickness / 2), 0, 0.001]}>
+        <boxGeometry args={[gap + thickness, thickness, 0.01]} />
+        <meshBasicMaterial {...matProps} />
+      </mesh>
+    </group>
   );
 }

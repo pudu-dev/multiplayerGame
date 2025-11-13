@@ -34,7 +34,9 @@ export const Experience = () => { //componente principal de la escena
   return (
     <>
       {/* camara que sigue al jugador local */}
-      <Camera playerRef={playerRef}/> 
+      <Camera 
+        playerRef={playerRef}
+        mouseSensitivity={0.002}/> 
       
       {/* mapa y luces */}
       <color attach="background" args={["#8b8b8b"]} />
