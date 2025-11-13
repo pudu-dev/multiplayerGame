@@ -9,6 +9,7 @@ import { characterAtom, myIdAtom, mapAtom } from "./conection/SocketConnection";
 import { usePlayerInput } from "./character/CharacterController.jsx";
 import { Camera } from "./character/CameraControl";
 import Item from "./items/items.jsx";
+import RemotePlayer from "./character/RemotePlayers.jsx";
 
 export const Experience = () => { //componente principal de la escena
 
@@ -67,22 +68,8 @@ export const Experience = () => { //componente principal de la escena
             </group>
           );
         } else {
-          // renderiza a Otros jugadores: usar la posición y rotacion enviada por el servidor, nunca la local.
-          return (
-            <group
-              key={char.id}
-              position={char.position}
-              rotation={[0, char.rotation, 0]} 
-            >
-              <Model
-                hairColor={char.hairColor}
-                topColor={char.topColor}
-                bottomColor={char.bottomColor}
-                shoeColor={char.shoeColor}
-                animation={char.animation}
-              />
-            </group>
-        );
+          // renderiza a otros jugadores usando RemotePlayer (interpolación suave)
+          return <RemotePlayer key={char.id} char={char} />;
         }
       })}
     </>

@@ -7,7 +7,8 @@ import { KeyboardInput } from "./inputs";
 const WALK_SPEED = 2;
 const RUN_SPEED = 4;
 const JUMP_VELOCITY = 10;
-const GRAVITY = -9.8;
+// exportamos la constante para que otros módulos (RemotePlayers) la reutilicen
+export const GRAVITY = -9.8;
 
 // --- Añadidos mínimos para reconciliación suave ---
 const SERVER_TICK = 33 / 1000; // debe coincidir con server TICK_MS
