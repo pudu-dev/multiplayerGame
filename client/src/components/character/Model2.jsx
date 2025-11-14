@@ -7,33 +7,51 @@ import { SkeletonUtils } from 'three-stdlib'
 
 export function Model({
   color = "green",
-  animation = "Idle",
+  animation = "idle",
   ...props
 }) {
   const group = useRef()
   const { scene, animations } = useGLTF('/models/character/green_alien.glb')
   const clone = useMemo(() => SkeletonUtils.clone(scene), [scene])
-  const { nodes} = useGraph(clone)
+  const { nodes } = useGraph(clone)
   const { actions } = useAnimations(animations, group)
 
-  const [currentAnim, setCurrentAnim] = useState(animation)
+  // logs para depuración
+  useEffect(() => {
+    if (animations) console.log('GLTF clips:', animations.map(c => c.name))
+  }, [animations])
+  useEffect(() => {
+    if (actions) console.log('Available action keys:', Object.keys(actions))
+  }, [actions])
 
-  // Cross-fade entre animaciones; si no hay `animation` reproducir la primera disponible
+  // no inicializar con la prop para forzar reproducción al montar
+  const [currentAnim, setCurrentAnim] = useState(null)
+
+  // helper para resolver nombres parciales (ej: "idle" -> "CharacterArmature|Idle")
+  const resolveActionKey = (desired, keys) => {
+    if (!desired) return null
+    if (keys.includes(desired)) return desired
+    const low = desired.toLowerCase()
+    const found = keys.find(k => k.toLowerCase().includes(low))
+    if (found) return found
+    return null
+  }
+
+  // reproducir / cross-fade cuando actions estén listos o cuando cambie la prop animation
   useEffect(() => {
     if (!actions) return
-    const names = Object.keys(actions)
-    // si no se pasó animation, y no hay currentAnim, arrancar la primera animación del glb
-    if (!animation && !currentAnim && names.length) {
-      const first = names[0]
-      actions[first]?.reset().fadeIn(0.3).play()
-      setCurrentAnim(first)
-      return
-    }
-    // si se pidió una animación diferente, hacer cross-fade
-    if (animation && currentAnim !== animation) {
+    const keys = Object.keys(actions)
+    if (!keys.length) return
+
+    const target = resolveActionKey(animation, keys) || keys[0]
+
+    if (currentAnim && currentAnim !== target) {
       actions[currentAnim]?.fadeOut(0.3)
-      actions[animation]?.reset().fadeIn(0.3).play()
-      setCurrentAnim(animation)
+    }
+
+    if (currentAnim !== target) {
+      actions[target]?.reset().fadeIn(0.3).play()
+      setCurrentAnim(target)
     }
   }, [animation, actions, currentAnim])
 
