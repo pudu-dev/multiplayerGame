@@ -9,7 +9,7 @@ export function Camera({
   playerRef,
   targetRef, // nuevo prop: si se pasa, la cámara sigue este anchor en vez del player directo
   offset = new THREE.Vector3(0, 5, -8),
-  lookAtOffset = new THREE.Vector3(0, 1.5, 0),
+  lookAtOffset = new THREE.Vector3(0, 2, 0),
   toggleKey = "c",
   smoothFollow = 0.1,
   mouseSensitivity = 0.0025, // NUEVO: sensibilidad del mouse para follow
