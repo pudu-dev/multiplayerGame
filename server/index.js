@@ -29,18 +29,20 @@ const WALK_SPEED = 2;      // unidades/seg
 const RUN_SPEED = 4;       // unidades/seg
 const JUMP_VELOCITY = 5;  // fuerza del salto
 const GRAVITY = -10;      // aceleración vertical
-const MAP_LIMIT = 25;      // límites del mapa
 const TICK_MS = 33;        // ms por tick (~30 ticks/s)
 const TICK_SEC = TICK_MS / 1000; // en segundos
 
 // ------------------------------ OBJETOS Y MAPA -------------------------------------------
+const MAPSIZE = [500,500];
+const MAP_LIMIT = 100;      // límites del mapa
+
 const items = {
   table: { name: "table", size: [4, 4] },
   chair: { name: "chair", size: [1, 1] },
 };
 
 const map = {
-  size: [50, 50],
+  size: MAPSIZE,
   gridDivision: 5,
   items: [
     { ...items.chair, gridPosition: [0, 0], rotation: 0 },

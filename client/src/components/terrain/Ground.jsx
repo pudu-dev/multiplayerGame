@@ -1,14 +1,12 @@
 import { RigidBody } from "@react-three/rapier";
 import { useState, useEffect } from "react";
-import { Socket} from "../conection/SocketConnection";
+import { useTexture } from "@react-three/drei";
+import * as THREE from "three";
 
-export const Ground = ({map, position=[0,-1,0]}) => {
-  // estado para hover visual
-  const [onFloor, setOnFloor] = useState(false);
-  // estado para modo cámara follow
+export const Ground = ({ map, position = [0, -1, 0] }) => {
+
   const [_cameraFollow, setCameraFollow] = useState(() => window.__cameraIsFollowing ?? true);
 
-  // escuchar cambios en el modo de cámara (follow/free)
   useEffect(() => {
     const handler = (e) => {
       setCameraFollow(Boolean(e.detail.isFollowing));
@@ -17,29 +15,60 @@ export const Ground = ({map, position=[0,-1,0]}) => {
     return () => window.removeEventListener("cameraModeChanged", handler);
   }, []);
 
-  // Si la cámara está en modo follow, desactivamos el hover visual
-  const handlePointerEnter = () => {
-    if (!_cameraFollow) setOnFloor(true);
-  };
-  const handlePointerLeave = () => {
-    if (!_cameraFollow) setOnFloor(false);
-  };
+  // TEXTURA DE PASTO (2D, no se deforma)
+  const grass = useTexture("/models/maps/grass.jpg");
+  grass.wrapS = grass.wrapT = THREE.RepeatWrapping;
+  grass.repeat.set(map.size[0] / 10, map.size[1] / 10);
 
-  // render del suelo
+  // HEIGHTMAP para colinas / montañas
+  const heightmap = useTexture("/models/maps/highmp.png");
+  heightmap.wrapS = heightmap.wrapT = THREE.ClampToEdgeWrapping;
+
+  // Textura para montañas
+  const rock = useTexture("/models/maps/rock.jpg");
+  rock.wrapS = rock.wrapT = THREE.RepeatWrapping;
+  rock.repeat.set(map.size[0] / 20, map.size[1] / 20);
+
   return (
-    <RigidBody type="fixed" colliders="cuboid">
+    <>
+      {/* MONTAÑAS */}
+      <RigidBody type="fixed" colliders="trimesh">
+        <mesh
+          position={position}
+          rotation-x={-Math.PI / 2}
+          receiveShadow
+          castShadow
+        >
+          <planeGeometry args={[map.size[0], map.size[1], 254, 254]} />
+
+          <meshStandardMaterial
+            map={rock}               // textura de montañas
+            displacementMap={heightmap} // mapa de alturas
+            displacementScale={12}   // altura de montañas
+            displacementBias={-4}
+            roughness={1}
+            metalness={0}
+          />
+        </mesh>
+      </RigidBody>
+
+      {/* PASTO */}
       <mesh
-        position={position}
-        receiveShadow
-        onPointerEnter={handlePointerEnter}
-        onPointerLeave={handlePointerLeave}
+        position={[position[0], position[1], position[2]]}
         rotation-x={-Math.PI / 2}
-      >
-        <planeGeometry args={map.size} />
-        <meshStandardMaterial color={onFloor ? "lightgreen" : "green"} />
+        receiveShadow>
+        <planeGeometry args={[map.size[0], map.size[1]]} />
+
+        <meshStandardMaterial
+          map={grass}
+          displacementMap={heightmap}          
+          displacementScale={1}   // altura del pasto
+          displacementBias={0}   // ajustar base del pasto
+          roughness={1}
+          metalness={0}/>
       </mesh>
-    </RigidBody>
+    </>
   );
 };
 
-export default Ground;
+export default Ground; 

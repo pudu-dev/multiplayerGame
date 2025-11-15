@@ -45,7 +45,7 @@ export default function App() {
               >
                 <Suspense fallback={null}>
                   <Crosshair size={0.6} color="white" />
-                  <Physics gravity={[0, -9.81, 0]} debug={true}> {/* debug true es caro */}
+                  <Physics gravity={[0, -9.81, 0]} debug={false}> {/* debug true es caro */}
                     <Stats /> 
                     <Experience />
                   </Physics>

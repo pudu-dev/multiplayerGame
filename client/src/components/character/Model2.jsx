@@ -4,9 +4,10 @@ import { useRef, useState, useMemo, useEffect } from 'react'
 import { useGraph } from '@react-three/fiber'
 import { useGLTF, useAnimations } from '@react-three/drei'
 import { SkeletonUtils } from 'three-stdlib'
+import { Color } from 'three'
 
 export function Model({
-  color = "green",
+  color = "red",
   animation = "idle",
   ...props
 }) {
@@ -15,18 +16,8 @@ export function Model({
   const clone = useMemo(() => SkeletonUtils.clone(scene), [scene])
   const { nodes } = useGraph(clone)
   const { actions } = useAnimations(animations, group)
-
-  // logs para depuración
-  useEffect(() => {
-    if (animations) console.log('GLTF clips:', animations.map(c => c.name))
-  }, [animations])
-  useEffect(() => {
-    if (actions) console.log('Available action keys:', Object.keys(actions))
-  }, [actions])
-
   // no inicializar con la prop para forzar reproducción al montar
   const [currentAnim, setCurrentAnim] = useState(null)
-
   // helper para resolver nombres parciales (ej: "idle" -> "CharacterArmature|Idle")
   const resolveActionKey = (desired, keys) => {
     if (!desired) return null
@@ -55,6 +46,29 @@ export function Model({
     }
   }, [animation, actions, currentAnim])
 
+
+  //----------------------------------------------------------------
+  // debug: listar acciones disponibles
+  useEffect(() => {
+    if (actions) console.log('Available action keys:', Object.keys(actions))
+  }, [actions])
+  //----------------------------------------------------------------
+
+  // Clonar el material original para poder activar skinning y tintar sin perder texturas
+  const skinnedMaterial = useMemo(() => {
+    const src = nodes?.Object_7?.material
+    if (!src) return null
+    const m = src.clone()
+    m.skinning = true
+    // aplicar tint si se pasa color (mantiene map/normal/ao, etc.)
+    try {
+      m.color = new Color(color)
+    } catch (e) {
+      // color no válido -> ignorar
+    }
+    return m
+  }, [nodes, color])
+
   return (
     <group ref={group} {...props} dispose={null}>
       <group name="Sketchfab_Scene">
@@ -70,9 +84,8 @@ export function Model({
                     name="Object_7"
                     geometry={nodes.Object_7.geometry}
                     skeleton={nodes.Object_7.skeleton}
-                  >
-                    <meshStandardMaterial skinning color={color} />
-                  </skinnedMesh>
+                    material={skinnedMaterial || nodes.Object_7.material}
+                  />
                 </group>
               </group>
             </group>

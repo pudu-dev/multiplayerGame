@@ -4,8 +4,7 @@ import { useAtom } from "jotai";
 import { useFrame, Canvas, useThree } from "@react-three/fiber";
 import { Ground } from "./terrain/Ground";
 import { Map } from "./terrain/Map";
-/* import { Model } from "./character/Model"; */
-import { Model } from "./character/Model2";
+import { Model } from "./character/Model";
 import { characterAtom, myIdAtom, mapAtom } from "./conection/SocketConnection";
 import { usePlayerInput } from "./character/CharacterController.jsx";
 import { Camera } from "./character/CameraControl";
