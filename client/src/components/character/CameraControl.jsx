@@ -12,7 +12,7 @@ export function Camera({
   lookAtOffset = new THREE.Vector3(0, 2, 0),
   toggleKey = "c",
   smoothFollow = 0.1,
-  mouseSensitivity = 0.0025, // NUEVO: sensibilidad del mouse para follow
+  mouseSensitivity = 0.0025, 
   minPitch = -0.6,
   maxPitch = 0.6,
 }) {
@@ -21,9 +21,21 @@ export function Camera({
   const [isFreeView, setIsFreeView] = useState(false);
   const currentLookAt = useRef(new THREE.Vector3());
 
+// --- RAYCAST para evitar clipping(evitar que la camara atraviese paredes) ---
+/* const raycaster = useRef(new THREE.Raycaster()); */
+
+  // ajustar near de la cámara para evitar clipping con objetos cercanos
+  useEffect(() => {
+    if (!camera) return;
+    camera.near = 0.1;
+    camera.updateProjectionMatrix();
+  }, [camera]);
+
   // NEW: yaw/pitch control while following
   const yaw = useRef(0);   // radians, applied to offset around Y
   const pitch = useRef(0); // radians, applied to vertical rotation of offset
+
+
 
   // Inicializar CameraControls
   useEffect(() => {

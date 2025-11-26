@@ -3,13 +3,14 @@ import { useState, useRef , useEffect } from "react";
 import { useAtom } from "jotai";
 import { useFrame, Canvas, useThree } from "@react-three/fiber";
 import { Ground } from "./terrain/Ground";
-import { Map } from "./terrain/Map";
-import { Model } from "./character/Model";
+/* import { Map } from "./terrain/Map"; */
+import { Model } from "./character/Model.jsx";
 import { characterAtom, myIdAtom, mapAtom } from "./conection/SocketConnection";
 import { usePlayerInput } from "./character/CharacterController.jsx";
 import { Camera } from "./character/CameraControl";
 import Item from "./items/items.jsx";
 import RemotePlayer from "./character/RemotePlayers.jsx";
+import { RigidBody } from "@react-three/rapier";
 
 export const Experience = () => { //componente principal de la escena
 
@@ -42,31 +43,30 @@ export const Experience = () => { //componente principal de la escena
       <color attach="background" args={["#8b8b8b"]} />
       <directionalLight intensity={1} position={[25, 18, -25]} castShadow />
       <ambientLight intensity={1} />
-      <Ground map={map} />
-      {/*   <Map />  */}
-      
+
       {/* recorro el array de item */}
       {map.items.map((item, idx) => (
           <Item key={`${item.name}-${idx}`} item={item} /> // Usar índice para evitar keys duplicadas (mismo item varias veces)
         ))
       }
+      <Ground map={map} />
 
+      {/*   <Map />  */}
+
+
+      {/* personajes (local y remotos) */}
       {characters.map((char) => { 
         const isPlayer = char.id === myId;
         if (isPlayer) {
-
-          // renderiza el jugador local: group con ref; su posición la actualizamos en useFrame (client-authority)
-          return (
+          return ( // renderiza el jugador local: group con ref; su posición la actualizamos en useFrame (client-authority)
             <group key={char.id} ref={playerRef}>
-              {/* anchor invisible para que la cámara siga establemente */}
-              <group ref={camTargetRef} position={[0, 1.6, 0]} />
-              <Model
-                hairColor={char.hairColor}
-                topColor={char.topColor}
-                bottomColor={char.bottomColor}
-                shoeColor={char.shoeColor}
-                animation={char.animation}
-              />
+              <group ref={camTargetRef} position={[0, 1.6, 0]} /> {/* anchor invisible para que la cámara siga establemente */}
+                <Model
+                  hairColor={char.hairColor}
+                  topColor={char.topColor}
+                  bottomColor={char.bottomColor}
+                  shoeColor={char.shoeColor}
+                  animation={char.animation} />
             </group>
           );
         } else {

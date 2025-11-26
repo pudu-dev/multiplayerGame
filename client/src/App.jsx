@@ -34,15 +34,14 @@ export default function App() {
                 Exit game
               </button>
 
-              <HUD />
-              <SocketManager />
+              <HUD/>
               <Canvas
                 shadows={false}                             // reducir costo de sombras
                 dpr={[1, 1.5]}                              // limitar pixelRatio
                 gl={{ antialias: true, powerPreference: 'high-performance' }} // favorecer perf
                 camera={{ position: [8, 8, 8], fov: 30 }}
-                style={{ touchAction: "none" }}
-              >
+                style={{ touchAction: "none" }}         
+                >
                 <Suspense fallback={null}>
                   <Crosshair size={0.6} color="white" />
                   <Physics gravity={[0, -9.81, 0]} debug={false}> {/* debug true es caro */}
