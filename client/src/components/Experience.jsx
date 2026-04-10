@@ -29,7 +29,7 @@ export const Experience = () => { //componente principal de la escena
 
   const playerRef = useRef(null); //referencia del jugador local para el movimiento de camara y personaje
   const camTargetRef = useRef(null); // anchor invisible para la cámara (separado del player mesh)
-  const { updateLocalPosition } = usePlayerInput(playerRef, camera, terrainRef) // pasar la cámara al hook
+  const { updateLocalPosition } = usePlayerInput(playerRef, camera, map) // pasar la cámara al hook
 
   useFrame((state, delta) => {updateLocalPosition(delta);}); //mover jugador local cada frame
 
@@ -54,12 +54,13 @@ export const Experience = () => { //componente principal de la escena
       <ambientLight intensity={1} />
 
       {/* recorro el array de item */}
-      {map.items.map((item, idx) => (
+      {map?.items?.map((item, idx) => (
           <Item key={`${item.name}-${idx}`} item={item} /> // Usar índice para evitar keys duplicadas (mismo item varias veces)
         ))
       }
 
-      <Ground map={map} terrainRef={terrainRef} />
+      {map && <Ground map={map} terrainRef={terrainRef} />}
+      {/* <Ground map={map} terrainRef={terrainRef} /> */}
 
       {/*   <Map />  */}
 

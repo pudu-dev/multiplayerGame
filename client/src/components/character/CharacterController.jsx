@@ -26,11 +26,71 @@ const SNAP_THRESHOLD = 0.6;    // distancia para snap inmediato
 export const CROSSHAIR_DISTANCE = 20;
 const MOUSE_ROTATION_SMOOTH = 0.18; // suavizado al rotar hacia el crosshair
 
+//------- HELPER para obtener la altura del terreno debajo del jugador (raycasting con linea visual) ----------------------
+/*  const raycaster = useRef(new THREE.Raycaster()); */
+function sampleGroundY(map, x, z) {
+const terrain = map?.terrain;
+const baseHeight = terrain?.baseHeight ?? 0;
 
+if (!map?.size || !terrain?.width || !terrain?.height || !terrain?.heights?.length) {
+return baseHeight;
+}
 
+const terrainSize = terrain.terrainSize ?? 2;
+const terrainHeight = terrain.terrainHeight ?? -40;
+const terrainHeightScale = terrain.terrainHeightScale ?? 2;
+const terrainPosition = terrain.position ?? [0, 0, 0];
+const step = Math.max(1, terrain.step ?? 1); // STEP
+
+const worldW = map.size[0] * terrainSize;
+const worldH = map.size[1] * terrainSize;
+if (worldW <= 0 || worldH <= 0) return baseHeight;
+
+const localX = x - terrainPosition[0];
+const localZ = z - terrainPosition[2];
+
+const u = localX / worldW + 0.5;
+const v = localZ / worldH + 0.5;
+if (u < 0 || u > 1 || v < 0 || v > 1) return baseHeight;
+
+const segW = Math.floor((terrain.width - 1) / step);
+const segH = Math.floor((terrain.height - 1) / step);
+if (segW <= 0 || segH <= 0) return baseHeight;
+
+const fx = u * segW;
+const fy = v * segH;
+
+const sx0 = Math.floor(fx);
+const sy0 = Math.floor(fy);
+const sx1 = Math.min(sx0 + 1, segW);
+const sy1 = Math.min(sy0 + 1, segH);
+
+const tx = fx - sx0;
+const ty = fy - sy0;
+
+const px0 = Math.min(sx0 * step, terrain.width - 1);
+const py0 = Math.min(sy0 * step, terrain.height - 1);
+const px1 = Math.min(sx1 * step, terrain.width - 1);
+const py1 = Math.min(sy1 * step, terrain.height - 1);
+
+const heights = terrain.heights;
+const idx = (ix, iy) => iy * terrain.width + ix;
+
+const h00 = Number(heights[idx(px0, py0)] ?? 0);
+const h10 = Number(heights[idx(px1, py0)] ?? 0);
+const h01 = Number(heights[idx(px0, py1)] ?? 0);
+const h11 = Number(heights[idx(px1, py1)] ?? 0);
+
+const h0 = h00 * (1 - tx) + h10 * tx;
+const h1 = h01 * (1 - tx) + h11 * tx;
+const h = h0 * (1 - ty) + h1 * ty;
+
+const terrainY = terrainPosition[1] + terrainHeight + h * terrainHeightScale;
+return Math.max(baseHeight, terrainY);
+}
 // ------------------------- Hook principal para el control del jugador --------------------------
 
-export function usePlayerInput(playerRef, camera) {
+export function usePlayerInput(playerRef, camera, map) {
 
   const input = KeyboardInput();
 
@@ -55,9 +115,7 @@ export function usePlayerInput(playerRef, camera) {
   const velocity = useRef({ y: 0 });
   const isGrounded = useRef(true);
 
-  const raycaster = useRef(new THREE.Raycaster());
-
-  // ------------------------- Aplicar estado autoritario del servidor --------------------------
+  // ------------------------- Manejo de entradas del servidor (AUTHORITY STATE SERVER) --------------------------
   useEffect(() => {
     const handleServerChars = (chars) => {
       if (!playerRef.current) return;
@@ -82,7 +140,6 @@ export function usePlayerInput(playerRef, camera) {
       const me = chars.find(c => c.id === Socket.id);
       if (!me) return;
 
-      // --- NO hacer snap directo ---
       // Construimos un target corregido: posición del servidor + re-aplicar pendingInputs usando SERVER_TICK
       const serverPos = new THREE.Vector3(me.position[0], me.position[1], me.position[2]);
 
@@ -105,12 +162,25 @@ export function usePlayerInput(playerRef, camera) {
           simVelY = JUMP_VELOCITY;
           simGrounded = false;
         }
+
         simVelY += GRAVITY * SERVER_TICK;
         corrected.y += simVelY * SERVER_TICK;
-        if (corrected.y <= 0) {
+
+        // límite de suelo para el target corregido
+/*         if (corrected.y <= 0) {
           corrected.y = 0;
           simVelY = 0;
           simGrounded = true;
+        }
+      } */
+
+        const correctedGroundY = sampleGroundY(map, corrected.x, corrected.z);
+        if (corrected.y <= correctedGroundY) {
+          corrected.y = correctedGroundY;
+          simVelY = 0;
+          simGrounded = true;
+        } else {
+          simGrounded = false;
         }
       }
 
@@ -127,14 +197,16 @@ export function usePlayerInput(playerRef, camera) {
 
     Socket.on("characters", handleServerChars);
     return () => Socket.off("characters", handleServerChars);
-  }, [playerRef]);
+  }, [playerRef, map]);
 
-  // ------------------------- Movimiento local (predicción cliente) --------------------------
+  // ------------------------- Movimiento LOCAL (predicción CLIENT) --------------------------
   const updateLocalPosition = (delta) => {
     if (!playerRef.current) return;
+
     // posición y rotación actuales
     const pos = playerRef.current.position;
     const rot = playerRef.current.rotation;
+
     // referencia de camara (para movimiento relativo)
     const cam = camera || window.__r3f_camera;
     if (!cam) return;
@@ -144,10 +216,9 @@ export function usePlayerInput(playerRef, camera) {
     cam.getWorldDirection(forward);
     forward.y = 0;
     forward.normalize();
+
     const right = new THREE.Vector3();
-    // CORRECCIÓN: usar up x forward para obtener el vector RIGHT correcto
-    // RIGHT = forward x up
-    right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+    right.crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize(); // usar up x forward para obtener el vector RIGHT correcto(RIGHT = forward x up)
 
     const moveDir = new THREE.Vector3();
     if (input.current.forward) moveDir.add(forward);
@@ -158,16 +229,19 @@ export function usePlayerInput(playerRef, camera) {
     // movimiento horizontal local inmediato (predicción)
     let moveX = 0;
     let moveZ = 0;
-    // yaw derivado del movimiento del teclado (null si no hay movimiento)
-    let movementYaw = null;
+    let movementYaw = null; // yaw derivado del movimiento del teclado (null si no hay movimiento)
+
     if (moveDir.lengthSq() > 0) {
       moveDir.normalize();
       const speed = input.current.run ? RUN_SPEED : WALK_SPEED;
+
       // aplicar movimiento local
       pos.addScaledVector(moveDir, speed * delta);
+
       // calcular vector de velocidad en world-space para enviar al servidor / reutilizar en reconciliación
       moveX = moveDir.x * speed;
       moveZ = moveDir.z * speed;
+      
       // calcular yaw de movimiento y mantenerlo (compatibilidad con código previo)
       movementYaw = Math.atan2(moveDir.x, moveDir.z);
       input.current.rotation = movementYaw;
@@ -189,17 +263,31 @@ export function usePlayerInput(playerRef, camera) {
     pos.y += velocity.current.y * delta;
 
     // límite de suelo
-    if (pos.y <= 0) {
+
+    //limite de suelo BASE
+/*     if (pos.y <= 0) {
       pos.y = 0;
       velocity.current.y = 0;
       isGrounded.current = true;
+    } */
+
+    // limite de suelo terrain
+    const groundY = sampleGroundY(map, pos.x, pos.z);
+    if (pos.y <= groundY) {
+      pos.y = groundY;
+      velocity.current.y = 0;
+      isGrounded.current = true;
+    } else {
+      isGrounded.current = false;
     }
 
-    // --------- Corrección suave aplicada por frame: lerp hacia serverTargetPos si es necesario ----
+
+    // --------- Corrección suave aplicada por frame: LERP hacia serverTargetPos si es necesario ----
     if (needCorrection.current) {
       const target = serverTargetPos.current;
       const err = target.clone().sub(pos);
       const errLen = err.length();
+
       if (errLen > SNAP_THRESHOLD) {
         // discrepancia grande -> snap inmediato
         pos.copy(target);
@@ -215,18 +303,18 @@ export function usePlayerInput(playerRef, camera) {
       }
     }
 
-    // ------------------------- Orientación hacia el crosshair (punto en la dirección de la cámara) -------------------------
+    // ------ Orientación hacia el crosshair (punto en la dirección de la cámara) ------
     // calcular punto objetivo en la dirección de la cámara a distancia configurable
     const camDir = new THREE.Vector3();
     cam.getWorldDirection(camDir);
     const lookPoint = cam.position.clone().add(camDir.multiplyScalar(CROSSHAIR_DISTANCE));
+
     // calcular yaw objetivo (atan2 usando (dx, dz))
     const dx = lookPoint.x - pos.x;
     const dz = lookPoint.z - pos.z;
 
     // determinar yaw objetivo pero recordar la última orientación cuando no hay entrada activa
     let targetYaw;
-
     // obtener yaw de la cámara si está expuesto por CameraControl
     const camYaw = (typeof window.__cameraYaw === "number") ? window.__cameraYaw : null;
 

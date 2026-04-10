@@ -13,6 +13,7 @@ Estructura:
  ARCHIVO: server.js
 ------------------------------------------------------------ */
 
+import { createTerrainAuthority } from "./useHeighmap.js";
 import { Server } from "socket.io";
 
 const io = new Server({
@@ -34,7 +35,9 @@ const TICK_SEC = TICK_MS / 1000; // en segundos
 
 // ------------------------------ OBJETOS Y MAPA -------------------------------------------
 const MAPSIZE = [500,500];
-const MAP_LIMIT = 1000;      // límites del mapa
+const MAP_LIMIT = 500;      // límites del mapa
+
+const terrainAuthority = createTerrainAuthority({ mapSize: MAPSIZE });
 
 const items = {
   table: { name: "table", size: [4, 4] },
@@ -44,6 +47,7 @@ const items = {
 const map = {
   size: MAPSIZE,
   gridDivision: 5,
+  terrain: terrainAuthority.terrainForClient,
   items: [
     { ...items.chair, gridPosition: [0, 0], rotation: 0 },
     { ...items.chair, gridPosition: [5, 5], rotation: 0 },
@@ -52,9 +56,19 @@ const map = {
 };
 
 // ------------------------------ FUNCIONES AUXILIARES -------------------------------------
+/* spawn en base */
 function generateRandomPosition() {
-  return [Math.random() * map.size[0], 80, Math.random() * map.size[1]]; // 50 para altura de spawn inicial
+  return [Math.random() * map.size[0], 50, Math.random() * map.size[1]]; // 10 para altura de spawn inicial
 }
+
+/* spawn en el terreno */
+/* function generateRandomPosition() {
+  const x = Math.random() * map.size[0];
+  const z = Math.random() * map.size[1];
+  const y = terrainAuthority.sampleGroundY(x, z) + 2;
+  return [x, y, z];
+} */
+
 
 function generateRandomHexColor() {
   return "#" + Math.floor(Math.random() * 16777215).toString(16);
@@ -98,6 +112,7 @@ setInterval(() => {
     }
 
     // ------------------ Gravedad y salto ------------------
+
     if (input.jump && char.isGrounded) {
       char.velocityY = JUMP_VELOCITY;
       char.isGrounded = false;
@@ -107,10 +122,21 @@ setInterval(() => {
     char.velocityY += GRAVITY * delta;
     char.position[1] += char.velocityY * delta;
 
-    if (char.position[1] <= 0) {
+    /* colicion vertical plana para base */
+/*     if (char.position[1] <= 0) {
       char.position[1] = 0;
       char.velocityY = 0;
       char.isGrounded = true;
+    } */
+
+    /* colicion para el terreno */ 
+    const groundY = terrainAuthority.sampleGroundY(char.position[0], char.position[2]);
+    if (char.position[1] <= groundY) {
+      char.position[1] = groundY;
+      char.velocityY = 0;
+      char.isGrounded = true;
+    } else {
+      char.isGrounded = false;
     }
 
     // ------------------ Límites del mapa ------------------
