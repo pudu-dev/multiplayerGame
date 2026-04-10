@@ -1,5 +1,5 @@
 import { useThree, useFrame } from "@react-three/fiber";
-import CameraControls from "camera-controls";
+import CameraControls from "camera-controls"; /* viene de drei */
 import * as THREE from "three";
 import { useEffect, useRef, useState } from "react";
 

@@ -1,0 +1,90 @@
+.contenedor-hud-principal {
+    position: absolute;
+    bottom: 1rem;
+    left: 1rem;
+    width: 16rem;
+    height: fit-content;
+    background-color: rgba(0, 0, 0, 0.5);
+    color: white;
+    border-radius: 1rem;
+    z-index: 50;
+    font-family: sans-serif;
+}
+
+.title {
+    font-size: 1rem;
+    font-weight: bold;
+}
+
+.parrafo {
+    font-size: 0.875rem;
+    color: rgb(255, 0, 0);
+}
+
+
+
+/* BARRA DE VIDA */
+
+.barra-vida-contenedor {
+    display: flex;
+    flex-direction: column;
+    justify-self: center;
+    width: 80%;
+}
+
+.barra-vida-parrafo {
+    font-size: 0.875rem;
+    color: rgb(255, 0, 0);
+}
+
+.barra-vida {
+    width: 100%;
+    background-color: rgb(133, 133, 133);
+    height: 1rem;
+    border: 2px solid rgb(255, 0, 0);
+    border-radius: 30px;
+    margin-top: 0.25rem;
+}
+
+
+.barra-vida-actual {
+    background-color: rgb(255, 0, 0);
+    height: 100%;
+    border-radius: 30px;
+}
+
+
+
+/* BARRA DE ENERGIA */
+
+.barra-energia-contenedor {
+    display: flex;
+    flex-direction: column;
+    justify-self: center;
+    width: 80%;
+}
+
+.barra-energia-parrafo {
+    font-size: 0.875rem;
+    color: rgb(0, 255, 0);
+}
+
+.barra-energia {
+    width: 100%;
+    background-color: rgb(133, 133, 133);
+    height: 1rem;
+    border: 2px solid rgb(0, 255, 0);
+    border-radius: 30px;
+    margin-top: 0.25rem;
+}
+
+.barra-energia-actual {
+    background-color: rgb(0, 255, 0);
+    height: 100%;
+    border-radius: 30px;
+}
+
+
+
+
+

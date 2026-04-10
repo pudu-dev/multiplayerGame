@@ -1,12 +1,12 @@
 // Crosshair.jsx
-import React, { useRef, useEffect } from "react";
+import { useRef, useEffect } from "react";
 import { useThree, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { CROSSHAIR_DISTANCE } from "../character/CharacterController";
 
 export default function Crosshair({
-  size = 0.5,
-  color = "white",
+  size = 0,
+  color = "",
 }) {
   const group = useRef();
   const { camera, gl } = useThree();

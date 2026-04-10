@@ -1,31 +1,38 @@
+/* KINEMATIC MOVEMENT */
+/* nota: no estamos usando rigidbody para mover nuestros personajes, el cliente usa prediccion/reconciliacion kinematica
+          para el movimiento del personaje con la logica en el servidor */
+
 import { useRef, useEffect } from "react";
 import * as THREE from "three";
 import { Socket } from "../conection/SocketConnection";
 import { KeyboardInput } from "./inputs";
 
+
 // ------------------------- Constantes compartidas (idénticas al servidor) --------------------------
-const WALK_SPEED = 2;
-const RUN_SPEED = 4;
+
+const WALK_SPEED = 4;
+const RUN_SPEED = 8;
 const JUMP_VELOCITY = 5;
+
 // exportamos la constante para que otros módulos (RemotePlayers) la reutilicen
 export const GRAVITY = -10;
 
-// --- Añadidos mínimos para reconciliación suave ---
+// --- settings para reconciliación suave ---
 const SERVER_TICK = 33 / 1000; // debe coincidir con server TICK_MS
 const SMOOTH_FACTOR = 0.16;    // ajustar 0.08..0.35 según gusto
 const SNAP_THRESHOLD = 0.6;    // distancia para snap inmediato
 
-// NUEVO: distancia del crosshair desde la cámara (ajustable)
+// --- CROSSHAIR distance desde la cámara (ajustable)
 export const CROSSHAIR_DISTANCE = 20;
 const MOUSE_ROTATION_SMOOTH = 0.18; // suavizado al rotar hacia el crosshair
 
-// ------------------------- Hook principal para el control del jugador --------------------------
-export function usePlayerInput(playerRef, camera) {
-  const input = KeyboardInput();
 
-  // estado físico local
-  const velocity = useRef({ y: 0 });
-  const isGrounded = useRef(true);
+
+// ------------------------- Hook principal para el control del jugador --------------------------
+
+export function usePlayerInput(playerRef, camera) {
+
+  const input = KeyboardInput();
 
   // reconciliación y predicción del cliente (server authority + client prediction)
   const seqRef = useRef(0);
@@ -43,6 +50,12 @@ export function usePlayerInput(playerRef, camera) {
   // NUEVO: recordar la última orientación hacia la que miró el jugador
   const lastFacingYaw = useRef(null); // null = aún no inicializado
   const prevCamYaw = useRef(null);
+
+  // estado físico LOCAL
+  const velocity = useRef({ y: 0 });
+  const isGrounded = useRef(true);
+
+  const raycaster = useRef(new THREE.Raycaster());
 
   // ------------------------- Aplicar estado autoritario del servidor --------------------------
   useEffect(() => {
@@ -69,7 +82,7 @@ export function usePlayerInput(playerRef, camera) {
       const me = chars.find(c => c.id === Socket.id);
       if (!me) return;
 
-      // --- NUEVO: NO hacer snap directo ---
+      // --- NO hacer snap directo ---
       // Construimos un target corregido: posición del servidor + re-aplicar pendingInputs usando SERVER_TICK
       const serverPos = new THREE.Vector3(me.position[0], me.position[1], me.position[2]);
 
@@ -163,6 +176,7 @@ export function usePlayerInput(playerRef, camera) {
       moveX = 0;
       moveZ = 0;
     }
+    
 
     // ------------------------- Salto (idéntica lógica que el servidor) -------------------------
     if (input.current.jump && isGrounded.current) {
@@ -181,7 +195,7 @@ export function usePlayerInput(playerRef, camera) {
       isGrounded.current = true;
     }
 
-    // ---- Corrección suave aplicada por frame: lerp hacia serverTargetPos si es necesario ----
+    // --------- Corrección suave aplicada por frame: lerp hacia serverTargetPos si es necesario ----
     if (needCorrection.current) {
       const target = serverTargetPos.current;
       const err = target.clone().sub(pos);
@@ -250,6 +264,7 @@ export function usePlayerInput(playerRef, camera) {
     const rAlpha = 1 - Math.pow(1 - MOUSE_ROTATION_SMOOTH, delta * 60);
     rot.y += diff * rAlpha;
 
+
     // ------------------------- Enviar al servidor -------------------------
     const packet = {
       seq: seqRef.current++,
@@ -268,6 +283,7 @@ export function usePlayerInput(playerRef, camera) {
     pendingInputs.current.push(packet);
     Socket.emit("move", packet);
   };
+  
 
   return { updateLocalPosition, input, snapshotBuffer: snapshotBuffer.current };
 }

@@ -1,8 +1,9 @@
-import { ContactShadows, useCursor } from "@react-three/drei";
+import { ContactShadows, OrbitControls, useCursor } from "@react-three/drei";
 import { useState, useRef , useEffect } from "react";
 import { useAtom } from "jotai";
-import { useFrame, Canvas, useThree } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { Ground } from "./terrain/Ground";
+
 /* import { Map } from "./terrain/Map"; */
 import { Model } from "./character/Model.jsx";
 import { characterAtom, myIdAtom, mapAtom } from "./conection/SocketConnection";
@@ -12,19 +13,23 @@ import Item from "./items/items.jsx";
 import RemotePlayer from "./character/RemotePlayers.jsx";
 import { RigidBody } from "@react-three/rapier";
 
+
+
+
 export const Experience = () => { //componente principal de la escena
 
   const { camera } = useThree(); // obtener cámara del contexto R3F
   const [characters] = useAtom(characterAtom);
   const [myId] = useAtom(myIdAtom);
-  const [map] = useAtom(mapAtom); 
+  const [map] = useAtom(mapAtom);  //map para colocar los items en el ground
+  const terrainRef = useRef(null); // referencia para el terreno (collider)
   
   const [onFloor, _setOnFloor] = useState(false);
   useCursor(onFloor);
 
   const playerRef = useRef(null); //referencia del jugador local para el movimiento de camara y personaje
   const camTargetRef = useRef(null); // anchor invisible para la cámara (separado del player mesh)
-  const { updateLocalPosition } = usePlayerInput(playerRef, camera) // pasar la cámara al hook
+  const { updateLocalPosition } = usePlayerInput(playerRef, camera, terrainRef) // pasar la cámara al hook
 
   useFrame((state, delta) => {updateLocalPosition(delta);}); //mover jugador local cada frame
 
@@ -32,12 +37,16 @@ export const Experience = () => { //componente principal de la escena
     console.log('Conectado con el id:', myId);
   }, [myId]);
 
+
   return (
     <>
       {/* camara que sigue al jugador local */}
       <Camera 
         playerRef={playerRef}
         mouseSensitivity={0.002}/> 
+
+        {/* para usar orbitcontrol comentar camera y apretar window key para usar el mouse*/}
+        {/* <OrbitControls enableZoom={true} /> */}
       
       {/* mapa y luces */}
       <color attach="background" args={["#8b8b8b"]} />
@@ -49,7 +58,8 @@ export const Experience = () => { //componente principal de la escena
           <Item key={`${item.name}-${idx}`} item={item} /> // Usar índice para evitar keys duplicadas (mismo item varias veces)
         ))
       }
-      <Ground map={map} />
+
+      <Ground map={map} terrainRef={terrainRef} />
 
       {/*   <Map />  */}
 

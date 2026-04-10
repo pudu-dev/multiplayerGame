@@ -1,25 +1,29 @@
+import './App.css'
 import { Suspense, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Experience } from "./components/Experience";
 import { SocketManager } from "./components/conection/SocketManager";
-import { Stats } from "@react-three/drei";
+import { Stats, Html } from "@react-three/drei";
 import HUD from "./components/ui/HUD";
-import RAPIER from '@dimforge/rapier3d-compat';
+/* import RAPIER from '@dimforge/rapier3d-compat'; */
 import { Physics } from "@react-three/rapier";
 import Crosshair from "./components/ui/CrossHair";
 
 export default function App() {
+
   const [gameState, setGameState] = useState("start");
+  console.log ("juego corriendo")
 
   return (
     <>
-      <div id="bodydiv" className="w-full h-screen">
-        <div id="marco" className="w-full h-full relative">
+      <div className="contenedor_principal" id="contenedor_principal" >
+
+        <div className="marco" id="marco">
+
           {/* ---------- PANTALLA DE INICIO ---------- */}
           {gameState === "start" && (
-            <div className="fixed inset-0 flex flex-col items-center justify-center bg-black text-white z-50">
-              <button onClick={() => setGameState("playing")}
-                      className="px-6 py-3 bg-green-500 rounded-lg hover:bg-green-700 transition">
+            <div className="pantalla_inicio">
+              <button onClick={() => setGameState("playing")} className="boton_inicio">
                 Start Game
               </button>
             </div>
@@ -29,8 +33,7 @@ export default function App() {
           {gameState === "playing" && (
             <>
               {/* Botón de salir */}
-              <button onClick={() => setGameState("start")}
-                      className="fixed top-2 right-2 z-1000 rounded-full bg-teal-500 border-none shadow-md font-bold text-white cursor-pointer" >
+              <button onClick={() => setGameState("start")} id="exitButton" className="boton_salir">
                 Exit game
               </button>
 
@@ -42,8 +45,8 @@ export default function App() {
                 camera={{ position: [8, 8, 8], fov: 30 }}
                 style={{ touchAction: "none" }}         
                 >
-                <Suspense fallback={null}>
-                  <Crosshair size={0.6} color="white" />
+                <Suspense fallback={<Html><div>Cargando escena...</div></Html>}> {/* puede ser null */}
+                  <Crosshair size={0.3} color="red" />
                   <Physics gravity={[0, -9.81, 0]} debug={false}> {/* debug true es caro */}
                     <Stats /> 
                     <Experience />
@@ -51,9 +54,12 @@ export default function App() {
                 </Suspense >
               </Canvas>
               <SocketManager />
+
             </>
           )}
+
         </div>
+        
       </div>
     </>
   );

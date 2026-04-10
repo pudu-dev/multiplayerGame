@@ -1,33 +1,47 @@
-import React from "react";
+import "./HUD.css";
 
 export default function HUD({ health = 100, stamina = 100 }) {
   return (
-    <div className="fixed bottom-4 left-4 bg-black bg-opacity-50 text-white p-4 rounded-md z-50 w-64 space-y-3 font-sans">
-      <h2 className="text-lg font-bold">Mini HUD</h2>
+    <div className="contenedor-hud-principal">
+
+      <h2 className="title">Mini HUD</h2>
       
-      <p className="text-sm">Keyboard  <br/>  MLB para mover <br/> SPACE para saltar</p>
+      <p className="parrafo">
+        MLB para mover <br/> 
+        SPACE para saltar
+      </p>
+
 
       {/* Barra de vida */}
-      <div>
-        <span className="text-xs">Health</span>
-        <div className="w-full bg-gray-700 h-3 rounded-full mt-1">
-          <div
-            className="bg-red-500 h-3 rounded-full"
-            style={{ width: `${health}%` }}
-          />
+      <div className="barra-vida-contenedor">
+
+        <span className="barra-vida-parrafo">Health</span>
+
+        <div className="barra-vida">
+
+          <div className="barra-vida-actual" style={{ width: `${health}%` }} />
+
         </div>
+
       </div>
 
+
+
       {/* Barra de energía / stamina */}
-      <div>
-        <span className="text-xs">Stamina</span>
-        <div className="w-full bg-gray-700 h-3 rounded-full mt-1">
-          <div
-            className="bg-yellow-400 h-3 rounded-full"
-            style={{ width: `${stamina}%` }}
-          />
+      <div className="barra-energia-contenedor">
+
+        <span className="barra-energia-parrafo">Stamina</span>
+
+        <div className="barra-energia">
+
+          <div className="barra-energia-actual" style={{ width: `${stamina}%` }} />
+
         </div>
+
       </div>
+
+
+
     </div>
   );
 }

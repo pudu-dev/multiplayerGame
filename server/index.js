@@ -1,5 +1,5 @@
 /* ===========================================================
-🌐 SERVIDOR DE JUEGO - SERVER AUTHORITY + CLIENT PREDICTION
+ SERVIDOR DE JUEGO - SERVER AUTHORITY + CLIENT PREDICTION
 ============================================================
 
 Estructura:
@@ -10,7 +10,7 @@ Estructura:
 - El cliente realiza reconciliación local e interpolación remota.
 
 ------------------------------------------------------------
-📦 ARCHIVO: server.js
+ ARCHIVO: server.js
 ------------------------------------------------------------ */
 
 import { Server } from "socket.io";
@@ -20,13 +20,13 @@ const io = new Server({
 });
 
 io.listen(3001);
-console.log("✅ Servidor corriendo en puerto 3001");
+console.log("Servidor corriendo en puerto 3001");
 
 // ------------------------------ CONSTANTES DEL JUEGO -------------------------------------
 const characters = [];
 
-const WALK_SPEED = 2;      // unidades/seg
-const RUN_SPEED = 4;       // unidades/seg
+const WALK_SPEED = 4;      // unidades/seg
+const RUN_SPEED = 8;       // unidades/seg
 const JUMP_VELOCITY = 5;  // fuerza del salto
 const GRAVITY = -10;      // aceleración vertical
 const TICK_MS = 33;        // ms por tick (~30 ticks/s)
@@ -34,7 +34,7 @@ const TICK_SEC = TICK_MS / 1000; // en segundos
 
 // ------------------------------ OBJETOS Y MAPA -------------------------------------------
 const MAPSIZE = [500,500];
-const MAP_LIMIT = 100;      // límites del mapa
+const MAP_LIMIT = 1000;      // límites del mapa
 
 const items = {
   table: { name: "table", size: [4, 4] },
@@ -53,7 +53,7 @@ const map = {
 
 // ------------------------------ FUNCIONES AUXILIARES -------------------------------------
 function generateRandomPosition() {
-  return [Math.random() * map.size[0], 0, Math.random() * map.size[1]];
+  return [Math.random() * map.size[0], 80, Math.random() * map.size[1]]; // 50 para altura de spawn inicial
 }
 
 function generateRandomHexColor() {
@@ -167,7 +167,7 @@ io.on("connection", (socket) => {
     },
     velocityY: 0,
     isGrounded: true,
-    lastProcessedInput: -1, // 🧠 usado para reconciliación
+    lastProcessedInput: -1, //  usado para reconciliación
   };
 
   characters.push(newChar);
@@ -207,12 +207,12 @@ io.on("connection", (socket) => {
 });
 
 /* ------------------------------------------------------------
-💡 NOTAS:
+ NOTAS:
 ------------------------------------------------------------
-✅ Este servidor usa "server authority" — los clientes no deciden posiciones finales.  
-✅ Envía "lastProcessedInput" → permite al cliente aplicar reconciliación.  
-✅ No necesita interpolación aquí (solo en el cliente).  
-✅ En el cliente:  
+* Este servidor usa "server authority" — los clientes no deciden posiciones finales.  
+* Envía "lastProcessedInput" → permite al cliente aplicar reconciliación.  
+* No necesita interpolación aquí (solo en el cliente).  
+* En el cliente:  
    - Jugador local → Client Prediction + Reconciliación.  
    - Jugadores remotos → Interpolación de snapshots.
  */

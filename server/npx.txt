@@ -28,15 +28,24 @@ gltfjsx public/models/model.glb: lee el archivo GLB origen (ruta relativa desde 
 HDRI O EXR: formato de imagen de fondos, funciona en Environment de drei
 
 
-crear carpeta server
+---------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------
+
+
+- creamos la carpeta server
 npm init -y (iniciamos nodejs para tener los package.json)
 npm install socket.io
 npm install nodemon --save-dev
 
-y en cliente:
+- dependencias opcionales:
+
+npm install bufferutil --save-dev
+npm install utf-8-validate --save-dev
+npm dedupe (evita duplicados en las dependencias)
+
+
+- y en cliente:
 npm install socket.io-client
+npm install jotai (libreria para gestion de estados para react)
 
-dependencias opcionales:
-npm install bufferutil utf-8-validate --save-dev
-
-npm install jotai
