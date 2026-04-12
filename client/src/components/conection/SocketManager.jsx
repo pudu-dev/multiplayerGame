@@ -3,16 +3,22 @@ import { useEffect, useRef } from 'react';
 import { useAtom, } from 'jotai';
 import { Socket, characterAtom, myIdAtom, mapAtom} from "./SocketConnection.js";
 
-export const SocketManager = () => {
+export const SocketManager = ({ name, team }) => {
   const [_characters, setCharacters] = useAtom(characterAtom);
   const [_myId, setMyId] = useAtom(myIdAtom);
-  
   const [_mapAtom, setMap] = useAtom(mapAtom);
 
   const bufferRef = useRef({ characters: null, map: null, id: null });
   const intervalRef = useRef(null);
 
   useEffect(() => {
+    // solo conectar cuando tengamos nombre y equipo
+    if (!name || !team) return;
+
+    // proporcionar auth antes de conectar para que el server lo vea en handshake
+    Socket.auth = { name, team };
+
+    // función para procesar el buffer y aplicar actualizaciones de estado agrupadas
     const flushBuffer = () => {
       const buf = bufferRef.current;
       // aplicar actualizaciones agrupadas en una sola renderización
@@ -75,7 +81,7 @@ export const SocketManager = () => {
       Socket.off('welcome', onWelcome);
       Socket.off('characters', onCharacters);
     };
-  }, [setCharacters, setMyId, setMap ,_myId]);
+  }, [setCharacters, setMyId, setMap ,_myId, name, team]);
 
   return null;
 };

@@ -11,14 +11,14 @@ import { KeyboardInput } from "./inputs";
 // ------------------------- Constantes compartidas (idénticas al servidor) --------------------------
 
 const WALK_SPEED = 4;
-const RUN_SPEED = 8;
+const RUN_SPEED = 16;
 const JUMP_VELOCITY = 5;
 
 // exportamos la constante para que otros módulos (RemotePlayers) la reutilicen
 export const GRAVITY = -10;
 
 // --- settings para reconciliación suave ---
-const SERVER_TICK = 33 / 1000; // debe coincidir con server TICK_MS
+const SERVER_TICK = 16 / 1000; // debe coincidir con server TICK_MS
 const SMOOTH_FACTOR = 0.16;    // ajustar 0.08..0.35 según gusto
 const SNAP_THRESHOLD = 0.6;    // distancia para snap inmediato
 

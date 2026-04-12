@@ -1,3 +1,12 @@
+.canvas {
+    border: 5px solid rgb(0, 0, 0);
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    display: block;
+  }
+
+
 .contenedor_principal {
   display: flex;
   justify-content: center;
@@ -5,13 +14,20 @@
   height: 100vh;
 }
 
-.marco {
-  width: 80%;
-  height: 80%;
-  border: 2px solid #000;
+.marco { 
+  border: 5px solid;
+  border-image: linear-gradient(to right, rgb(153, 153, 153), rgb(126, 47, 47)) 1 1 1 1;
+  width:100%;
+  height: 100%;
+  box-sizing: border-box;
+
   display: flex;
   justify-content: center;
   align-items: center;
+
+  background-color: transparent;
+
+
 }
 
 .pantalla_inicio {
@@ -22,23 +38,16 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.349);
+  background: rgb(70, 81, 83);
   color: white;
   z-index: 50;
+  gap: 2rem;
   
 }
 
-.boton_inicio {
 
-  padding: 6px 3px;
-  background: green;
-  border-radius: 100%;
-  transition: background 0.3s ease;
-}
+/* ---------------------------------------------------------------------- */
 
-.boton_inicio:hover {
-  background: rgb(0, 102, 255);
-}
 
 .boton_salir {
   position: fixed;
@@ -52,4 +61,92 @@
   font-weight: bold;
   color: white;
   cursor: pointer;
+}
+
+/* ---------------------------------------------------------------------- */
+/* ---------------------------------------------------------------------- */
+
+
+/* TITULO DEL JUEGO */
+.titulo_juego {
+  font-size: 48px;
+  margin-bottom: 20px;
+  color: rgb(0, 255, 64);
+}
+
+
+/* FORMULARIO DE INICIO */
+.contenedor_formulario_inicio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+
+/* SELECCION DE NOMBRE */
+.contenedor_nombre {
+  margin-bottom: 1rem;
+}
+
+.titulo_nombre {
+  font-size: 18px;
+  margin-bottom: 5px;
+}
+
+.input_nombre {
+  padding: 8px;
+  font-size: 16px;
+  border: 2px solid #ccc;
+  border-radius: 4px;
+}
+
+
+/* SELECCIÓN DE EQUIPO */
+.contenedor_seleccion_team {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+
+}
+
+.titulo_team {
+  font-size: 18px;
+  margin-bottom: 5px;
+}
+
+.team_selection {
+  display: flex;
+  flex-direction: row;
+}
+
+.team_selector {
+  margin-left: 1rem;
+  width: 20px;
+  height: 20px;
+}
+
+.red_team_selector_label {
+  font-size: 18px;
+  color: red;
+}
+
+.blue_team_selector_label {
+  font-size: 18px;
+  color: blue;
+}
+
+/* ---------------------------------------------------------------------- */
+/* ---------------------------------------------------------------------- */
+
+
+.boton_inicio {
+
+  padding: 1rem 1rem;
+  background: green;
+  border-radius: 10%;
+  border: none;
+}
+
+.boton_inicio:hover {
+  background: rgb(0, 102, 255);
 }

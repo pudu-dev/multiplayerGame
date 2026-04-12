@@ -1,0 +1,23 @@
+
+.contenedor-principal-musicplayer {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  z-index: 999;
+}
+
+.onclick-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+}
+
+.onclick-button.playing { background: #ff4d4d; }
+.onclick-button.paused  { background: #4CAF50; }
