@@ -13,6 +13,8 @@ import Item from "./items/items.jsx";
 import RemotePlayer from "./character/RemotePlayers.jsx";
 import { RigidBody } from "@react-three/rapier";
 
+import CharacterHud from "./ui/CharacterHUD.jsx";
+
 
 
 
@@ -77,12 +79,23 @@ export const Experience = () => { //componente principal de la escena
                   topColor={char.topColor}
                   bottomColor={char.bottomColor}
                   shoeColor={char.shoeColor}
-                  animation={char.animation} />
+                  animation={char.animation} 
+                />
+                <CharacterHud 
+                  playerName={char.name} 
+                  health={char.health} 
+                  maxHealth={char.maxHealth}
+                  energy={char.energy} 
+                  maxEnergy={char.maxEnergy} 
+                />
             </group>
           );
         } else {
           // renderiza a otros jugadores usando RemotePlayer (interpolación suave)
-          return <RemotePlayer key={char.id} char={char} />;
+          return ( 
+            <RemotePlayer key={char.id} char={char} /> 
+          );
+
         }
       })}
     </>

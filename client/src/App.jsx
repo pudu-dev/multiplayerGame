@@ -92,8 +92,9 @@ export default function App() {
               </button>
 
               <HUD/>
+
               <Canvas
-                Htmlid= "canvas"
+                id= "canvas"
                 shadows={false} // reducir costo de sombras
                 dpr={[1, 1.5]} // limitar pixelRatio
                 gl={{ antialias: true, powerPreference: 'high-performance' }} // favorecer perf

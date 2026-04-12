@@ -58,14 +58,15 @@ io.on("connection", (socket) => {
 
   // ------------------ Inicialización del personaje ------------------
 
+  const playerName = socket.handshake?.auth?.name || `Player_${socket.id.slice(0,4)}`;
   // obtener equipo preferido del handshake (enviado por el cliente antes de conectar)
   const preferredTeam = socket.handshake?.auth?.team;
   // determinar equipo asignado (puedes implementar lógica más compleja aquí, como balancear equipos)
   const teamName = preferredTeam === "red" ? "red" : "blue"; // default a blue si no se especifica o es inválido
-  
+  // generar posición de spawn basada en el equipo
   const spawnPosition = generateSpawnPosition(teamName);
-  
-  const newChar = newCharacter(socket.id, spawnPosition, teamName);
+
+  const newChar = newCharacter(socket.id, spawnPosition, teamName, undefined, playerName);
   addCharacter(newChar);
 
   // Enviar estado inicial solo al nuevo jugador

@@ -10,7 +10,7 @@ export const characters = [];
 /* --------------------------------------------------------------------------------------- */
 
 // función para crear un nuevo personaje con estado inicial
-export function newCharacter(id , position, team, spawnByTeam) {
+export function newCharacter(id , position, team, spawnByTeam, name = `Player_${String(id).slice(0,4)}` ) {
 
   const health = 100;
   const energy = 100;
@@ -19,6 +19,7 @@ export function newCharacter(id , position, team, spawnByTeam) {
 
   return {
     id,
+    name,
     team,
     spawnByTeam,
     position,
@@ -39,13 +40,14 @@ export function newCharacter(id , position, team, spawnByTeam) {
       moveZ: 0,
       rotation: 0,
     },
+    lastProcessedInput: -1,
     velocityY: 0,
     isGrounded: true,
-    lastProcessedInput: -1,
     health,
     maxHealth,
     energy,
     maxEnergy,
+    isAlive: true,
   };
 }
 

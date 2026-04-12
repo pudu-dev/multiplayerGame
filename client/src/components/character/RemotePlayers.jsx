@@ -5,6 +5,7 @@ import { Model } from "./Model";
 // importar la gravedad desde CharacterController
 import { GRAVITY } from "./CharacterController.jsx";
 /* const GRAVITY = -9.8; */
+import CharacterHud from "../ui/CharacterHUD.jsx";
 
 export default function RemotePlayer({ char, smooth = 0.12, snapThreshold = 1.0 }) {
   const groupRef = useRef();
@@ -155,6 +156,15 @@ export default function RemotePlayer({ char, smooth = 0.12, snapThreshold = 1.0 
         shoeColor={char.shoeColor}
         animation={char.animation}
       />
+      <CharacterHud
+      playerName={char.name}
+      health={char.health}
+      maxHealth={char.maxHealth}
+      energy={char.energy}
+      maxEnergy={char.maxEnergy}
+      position={[0, 2.2, 0]} // ajustar si hace falta
+      scale={1}
+    />
     </group>
   );
 }
