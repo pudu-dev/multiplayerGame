@@ -88,6 +88,8 @@ const h = h0 * (1 - ty) + h1 * ty;
 const terrainY = terrainPosition[1] + terrainHeight + h * terrainHeightScale;
 return Math.max(baseHeight, terrainY);
 }
+
+
 // ------------------------- Hook principal para el control del jugador --------------------------
 
 export function usePlayerInput(playerRef, camera, map) {
@@ -114,6 +116,7 @@ export function usePlayerInput(playerRef, camera, map) {
   // estado físico LOCAL
   const velocity = useRef({ y: 0 });
   const isGrounded = useRef(true);
+
 
   // ------------------------- Manejo de entradas del servidor (AUTHORITY STATE SERVER) --------------------------
   useEffect(() => {
@@ -166,14 +169,7 @@ export function usePlayerInput(playerRef, camera, map) {
         simVelY += GRAVITY * SERVER_TICK;
         corrected.y += simVelY * SERVER_TICK;
 
-        // límite de suelo para el target corregido
-/*         if (corrected.y <= 0) {
-          corrected.y = 0;
-          simVelY = 0;
-          simGrounded = true;
-        }
-      } */
-
+        // limite de suelo terrain y base para el target corregido (evitar que el target quede debajo del suelo)
         const correctedGroundY = sampleGroundY(map, corrected.x, corrected.z);
         if (corrected.y <= correctedGroundY) {
           corrected.y = correctedGroundY;
@@ -198,6 +194,7 @@ export function usePlayerInput(playerRef, camera, map) {
     Socket.on("characters", handleServerChars);
     return () => Socket.off("characters", handleServerChars);
   }, [playerRef, map]);
+
 
   // ------------------------- Movimiento LOCAL (predicción CLIENT) --------------------------
   const updateLocalPosition = (delta) => {
