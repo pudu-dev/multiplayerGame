@@ -15,6 +15,8 @@ import { RigidBody } from "@react-three/rapier";
 
 import CharacterHud from "./ui/CharacterHUD.jsx";
 
+import Attacks from "./character/Attacks.jsx";
+
 
 
 
@@ -67,13 +69,20 @@ export const Experience = () => { //componente principal de la escena
       {/*   <Map />  */}
 
 
+
+      <Attacks playerRef={playerRef} camTargetRef={camTargetRef} camera={camera} />
+
+
+
       {/* personajes (local y remotos) */}
       {characters.map((char) => { 
         const isPlayer = char.id === myId;
         if (isPlayer) {
           return ( // renderiza el jugador local: group con ref; su posición la actualizamos en useFrame (client-authority)
             <group key={char.id} ref={playerRef}>
+
               <group ref={camTargetRef} position={[0, 1.6, 0]} /> {/* anchor invisible para que la cámara siga establemente */}
+                
                 <Model
                   hairColor={char.hairColor}
                   topColor={char.topColor}
@@ -81,6 +90,7 @@ export const Experience = () => { //componente principal de la escena
                   shoeColor={char.shoeColor}
                   animation={char.animation} 
                 />
+
                 <CharacterHud 
                   playerName={char.name} 
                   health={char.health} 
@@ -88,6 +98,7 @@ export const Experience = () => { //componente principal de la escena
                   energy={char.energy} 
                   maxEnergy={char.maxEnergy} 
                 />
+
             </group>
           );
         } else {
@@ -97,6 +108,7 @@ export const Experience = () => { //componente principal de la escena
           );
 
         }
+        
       })}
     </>
   );

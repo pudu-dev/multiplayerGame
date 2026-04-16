@@ -4,7 +4,8 @@ import { useTexture } from "@react-three/drei";
 import * as THREE from "three";
 
 export const Ground = ({ map, position = [0, 0, 0], terrainRef = null }) => {
-  const terrain = map?.terrain;
+
+  const terrain = map?.terrain ?? null;
 
   const hm = useMemo(() => {
     if (!terrain?.width || !terrain?.height || !terrain?.heights?.length) return null;
@@ -24,23 +25,25 @@ export const Ground = ({ map, position = [0, 0, 0], terrainRef = null }) => {
   const grass = useTexture("/models/maps/grass.jpg");
   grass.wrapS = grass.wrapT = THREE.RepeatWrapping;
 
-  if (!map || !terrain || !hm) return null;
+  if (!map) return null;
 
-  const STEP = terrain.step ?? 1; // cada cuántos pixeles del heightmap se muestrea para generar el terreno (reduce cantidad de vértices y mejora performance), cambiar en useHeighmap server al cambiar aqui y en charactercontroller client
-  const HEIGHT_THRESHOLD = 10;
+  const STEP = terrain?.step ?? 1;
+  const HEIGHT_THRESHOLD = 5; // umbral para distinguir entre zonas de hierba (verde) y roca (blanca) en el terreno, basado en la altura final del terreno. Ajustar según el heightmap y la escala de alturas para obtener una buena distribución de texturas.
 
-  const baseSize = terrain.baseSize ?? 2;
-  const baseHeight = terrain.baseHeight ?? 0;
+  const baseSize = terrain?.baseSize ?? 2;
+  const baseHeight = terrain?.baseHeight ?? 0;
 
-  const terrainSize = terrain.terrainSize ?? 2;
-  const terrainHeight = terrain.terrainHeight ?? -40;
-  const terrainHeightScale = terrain.terrainHeightScale ?? 2;
-  const terrainPosition = terrain.position ?? [0, 0, 0];
+  const terrainSize = terrain?.terrainSize ?? 2;
+  const terrainHeight = terrain?.terrainHeight ?? -10;
+  const terrainHeightScale = terrain?.terrainHeightScale ?? 2;
+  const terrainPosition = terrain?.position ?? [0, 0, 0];
 
-  rock.repeat.set((map.size[0] * terrainSize) / 20, (map.size[1] * terrainSize) / 20);
+  rock.repeat.set((map.size[0] * terrainSize) / 10, (map.size[1] * terrainSize) / 10);
   grass.repeat.set((map.size[0] * baseSize) / 10, (map.size[1] * baseSize) / 10);
 
   const terrainGeometry = useMemo(() => {
+    if (!hm) return null;
+
     const widthSegments = Math.floor((hm.width - 1) / STEP);
     const heightSegments = Math.floor((hm.height - 1) / STEP);
 
@@ -83,25 +86,29 @@ export const Ground = ({ map, position = [0, 0, 0], terrainRef = null }) => {
 
   return (
     <>
+      {/* base siempre */}
       <mesh position={[position[0], baseHeight, position[2]]} rotation-x={-Math.PI / 2}>
         <planeGeometry args={[map.size[0] * baseSize, map.size[1] * baseSize]} />
         <meshStandardMaterial map={grass} />
       </mesh>
 
-      <RigidBody type="fixed" colliders="trimesh">
-        <mesh
-          ref={terrainRef}
-          position={[
-            position[0] + terrainPosition[0],
-            position[1] + terrainPosition[1],
-            position[2] + terrainPosition[2],
-          ]}
-          rotation-x={-Math.PI / 2}
-          geometry={terrainGeometry}
-        >
-          <meshStandardMaterial map={rock} vertexColors roughness={1} metalness={0} />
-        </mesh>
-      </RigidBody>
+      {/* renderizar terreno solo si hay geometry */}
+      {terrainGeometry && (
+        <RigidBody type="fixed" colliders="trimesh">
+          <mesh
+            ref={terrainRef}
+            position={[
+              position[0] + terrainPosition[0],
+              position[1] + terrainPosition[1],
+              position[2] + terrainPosition[2],
+            ]}
+            rotation-x={-Math.PI / 2}
+            geometry={terrainGeometry}
+          >
+            <meshStandardMaterial map={rock} vertexColors roughness={1} metalness={0} />
+          </mesh>
+        </RigidBody>
+      )}
     </>
   );
 };

@@ -1,14 +1,15 @@
 import './App.css'
 import { Suspense, useState } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Canvas} from "@react-three/fiber";
 import { Experience } from "./components/Experience";
 import { SocketManager } from "./components/conection/SocketManager";
-import { Stats, Html } from "@react-three/drei";
+import { Stats, Html, Environment } from "@react-three/drei";
 import HUD from "./components/ui/HUD";
 /* import RAPIER from '@dimforge/rapier3d-compat'; */
 import { Physics } from "@react-three/rapier";
 import Crosshair from "./components/ui/CrossHair";
 import MusicPlayer from "./components/utilitycomponents/MusicPlayer";
+/* import Sky from "./components/terrain/Sky.jsx"; */
 
 export default function App() {
 
@@ -101,14 +102,23 @@ export default function App() {
                 camera={{ position: [8, 8, 8], fov: 60 }}
                 style={{ touchAction: "none" }}         
                 >
+
                 <Suspense fallback={<Html><div>Cargando juego...</div></Html>}> {/* puede ser null */}
+                  {/* Entorno HDR ["sunset", "dawn", "night", "warehouse", "forest", "apartment", "studio", "city", "park", "lobby"]*/}
+                  {/* <Environment preset="night" background={false} /> */}
+                  {/* para usar un HDR personalizado, colocar el archivo en public/env.hdr y descomentar */}
+                  <Environment files="../public/models/maps/sky.hdr" background={true} environmentIntensity={0} /> 
+                  {/* <Sky/> */}
                   <Crosshair size={0.3} color="red" />
                   <Physics gravity={[0, -9.81, 0]} debug={false}> {/* debug true es caro */}
                     <Stats /> 
                     <Experience />
                   </Physics>
+
                 </Suspense >
+
               </Canvas>
+
               <SocketManager name={playerName} team={playerTeam} />
 
             </>

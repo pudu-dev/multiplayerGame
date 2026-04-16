@@ -13,9 +13,9 @@ Estructura:
 
 // ------------------------------ IMPORTACIONES ---------------------------------------------
 import { characters, newCharacter, addCharacter, applyInput, removeCharacter, tickCharacters } from "./components/characters.js";
-import { map, items, terrainAuthority, generateSpawnPosition } from "./components/groundConfig.js"; 
+import { map, items, terrainAuthority, generateSpawnPosition, Terrain } from "./components/groundConfig.js"; 
 /* podemos cambiar a generateRandomPosition si queremos un todos contra todos (cambiar spawn en groundconfig)*/
-
+import { createProjectile, tickProjectiles, getProjectiles } from "./components/attacks.js";
 // ------------------------------ CONFIGURACIÓN DEL SERVIDOR --------------------------------
 import { Server } from "socket.io";
 
@@ -36,20 +36,20 @@ const TICK_SEC = TICK_MS / 1000; // en segundos
 // ------------------------------ LOOP DEL SERVIDOR ----------------------------------------
 setInterval(() => {
 
-  const updated = tickCharacters(TICK_SEC, { terrain: terrainAuthority });
+  const updated = tickCharacters(TICK_SEC, { terrain: Terrain ? terrainAuthority : null });
+
+  const projectileUpdated = tickProjectiles(TICK_SEC);
 
   // ------------------ Emitir estado actualizado ------------------
   if (updated) {
     io.emit("characters", characters);
   }
+
+  if (projectileUpdated) {
+    io.emit("projectiles", getProjectiles());
+  }
+
 }, TICK_MS);
-
-//------------------------------ HELPER FUNCTIONS ----------------------------------------
-
-
-
-
-
 
 
 // ------------------------------ CONEXIONES -----------------------------------------------
@@ -81,15 +81,22 @@ io.on("connection", (socket) => {
   io.emit("characters", characters);
 
   // ------------------ Manejar inputs ------------------
-  socket.on("move", (input) => {
 
+  //input de movimiento
+  socket.on("move", (input) => {
     // controlado por character.js - aplica input al personaje correspondiente
     applyInput(socket.id, input);
   });
 
+  //input de ataque
+  socket.on("attack", (data) => {
+  // data: { position: [x,y,z], direction: [x,y,z], speed?, maxDistance? }
+  createProjectile(socket.id, data.position || [0,1.6,0], data.direction || [0,0,-1], data.speed ?? 20, data.maxDistance ?? 30);
+  });
+
+
   // ------------------ Desconexión ------------------
   socket.on("disconnect", () => {
-
     console.log("🔴 Usuario desconectado:", socket.id);
     // Eliminar personaje del jugador desconectado- controlado por character.js
     removeCharacter(socket.id);
@@ -99,7 +106,7 @@ io.on("connection", (socket) => {
 });
 
 /* ------------------------------------------------------------
- NOTAS:
+ NOTAS: HIDRID SERVER AUTHORITY + CLIENT PREDICTION
 ------------------------------------------------------------
 * Este servidor usa "server authority" — los clientes no deciden posiciones finales.  
 * Envía "lastProcessedInput" → permite al cliente aplicar reconciliación.  

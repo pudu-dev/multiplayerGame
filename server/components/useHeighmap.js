@@ -6,13 +6,13 @@ import { PNG } from "pngjs";
 
 export const TERRAIN_CONFIG = Object.freeze({
   src: "/models/maps/highmp.png",
-  scale: 100,
-  baseSize: 2,
-  baseHeight: 0,
-  terrainSize: 2,
-  terrainHeight: -40,
-  terrainHeightScale: 2,
-  step: 1, // STEP
+  scale: 1,
+  baseSize: 2, // tamaño de la base en el mundo que corresponde a cada pixe, nuestro mapa tiene [x,y] pixels, entonces el tamaño total de la base sera baseSize * mapSize (2)
+  baseHeight: 0, // base a y=0, el terreno se eleva desde esta base segun el heightmap
+  terrainSize: 2, // tamaño del terreno en el mundo real que corresponde a cada pixel, nuestro mapa tiene [x,y] pixels, entonces el tamaño total del terreno sera 2 para cubrir todo el mapa.
+  terrainHeight: -10, // altura adicional que se suma al terreno generado por el heightmap. Puede usarse para elevar todo el terreno por encima de la baseHeight.
+  terrainHeightScale: 50, // factor de escala para las alturas del heightmap. Aumentar este valor hace que las montañas sean más altas y los valles más profundos.
+  step: 1, // STEP es el tamaño del paso entre muestras del heightmap. Un step de 1 usa cada pixel, un step de 2 usa cada 2 pixels, etc. Aumentar el step mejora el rendimiento pero reduce la precisión del terreno. Ajustar según el tamaño del mapa y la resolución del heightmap.
   position: [0, 0, 0],
 });
 
@@ -22,7 +22,7 @@ function resolveHeightmapAbsolutePath(src) {
   return path.resolve(__dirname, `../../client/public${src}`);
 }
 
-function loadHeightmapFromPng(src, scale = 100) {
+function loadHeightmapFromPng(src, scale = 1) {
   const filePath = resolveHeightmapAbsolutePath(src);
   const pngBuffer = fs.readFileSync(filePath);
   const png = PNG.sync.read(pngBuffer);
@@ -31,7 +31,7 @@ function loadHeightmapFromPng(src, scale = 100) {
   for (let i = 0; i < heights.length; i++) {
     const stride = i * 4;
     const r = png.data[stride];
-    heights[i] = (r / 255) * scale;
+    heights[i] = (r / 255) * scale; // 255 es el valor maximo de un canal de color en png
   }
 
   return { width: png.width, height: png.height, heights, filePath };
