@@ -18,19 +18,28 @@ Esto permite:
 
 ---
 
-## 🖥️ Tech Stack
+##  Aruitectura actual:
 
-### 🎯 Cliente
+###  Cliente
 - React
 - Three.js STACK
 
-### ⚙️ Servidor (actual)
+###  Servidor (actual)
 - Python
 - FastAPI
 - WebSockets
 
-### 🗄️ Base de datos
+###  Base de datos
 - en Desarrollo
+
+##  Arquitectura anterior:
+
+### Cliente(anterior)
+- React + Three.js socket.io configuration
+
+### Servidor(anterior)
+- Node.js
+- Socket.IO
 ---
 
 ## 🌍 Características
@@ -47,19 +56,10 @@ Esto permite:
 > 🚧 Proyecto personal en desarrollo enfocado en aprendizaje y experimentación.
 ---
 
-## 🕰️ Arquitectura anterior
-
-### Cliente
-- React + Three.js
-
-### Servidor
-- Node.js
-- Socket.IO
----
 
 ## 🎯 Objetivo
 
-Explorar e implementar:
+> Explorar e implementar:
 - Networking en tiempo real
 - Predicción y reconciliación
 - Arquitecturas y mecanicas escalables para juegos multiplayer
