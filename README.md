@@ -21,14 +21,14 @@ Proyecto enfocado en el aprendizaje de arquitectura multiplayer en tiempo real, 
 -  Sistema de cámara dinámico
 ---
 
-
 ## Objetivo
 
-> Explorar e implementar:
+> Explorar e implementar arquitecturas y mecanicas escalables para juegos multiplayer:
+
+- Integración cliente-servidor eficiente
 - Networking en tiempo real
 - Predicción y reconciliación
-- Arquitecturas y mecanicas escalables para juegos multiplayer
-- Integración cliente-servidor eficiente
+- Interpolación
 ---
 
 
@@ -42,8 +42,8 @@ Proyecto enfocado en el aprendizaje de arquitectura multiplayer en tiempo real, 
 - Mayor precisión en el estado del juego
 - Reducción de latencia percibida
 - Sincronización consistente entre jugadores
-
 ---
+
 
 ## Tech Stack actual:
 
@@ -59,7 +59,7 @@ Proyecto enfocado en el aprendizaje de arquitectura multiplayer en tiempo real, 
 ### Base de datos
 - en Desarrollo
 
-## Tech Stack anterior(migrada):
+## Tech Stack anterior(migrated):
 
 ### Cliente
 - React + Three.js socket.io configuration
