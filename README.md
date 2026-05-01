@@ -77,7 +77,7 @@ Proyecto enfocado en el aprendizaje de arquitectura multiplayer en tiempo real, 
 |  _ \ | | | | / _  || | | |
 | |_) || |_| || (_| || |_| |
 |  __/  \__ _| \__ _| \__ _|
-| |
+| |                         ® ℠ ™
 | | Creado, Programado y Diseñado por:
 |_| @Benjamin Maldonado
     benjaminmaldonadobarrales@gmail.com
