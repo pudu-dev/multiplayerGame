@@ -1,13 +1,13 @@
 import { useRef, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { Model } from "./Model";
+import { Model } from "./Model.jsx";
 // importar la gravedad desde CharacterController
 import { GRAVITY } from "./CharacterController.jsx";
 /* const GRAVITY = -9.8; */
 import CharacterHud from "../ui/CharacterHUD.jsx";
 
-export default function RemotePlayer({ char, smooth = 0.12, snapThreshold = 1.0 }) {
+export default function RemotePlayer({ char, smooth = 0.24, snapThreshold = 2.0 }) {
   const groupRef = useRef();
 
   // reusar vectores / quaternion para evitar allocations por frame

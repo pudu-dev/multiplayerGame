@@ -30,7 +30,7 @@ export default Items; */
 import { useMemo } from 'react';
 import { useGLTF} from "@react-three/drei";
 import { useAtom } from 'jotai';
-import { mapAtom } from "../conection/SocketConnection";
+import { mapAtom } from "../../conection/SocketConnection.js";
 import { SkeletonUtils } from 'three-stdlib';
 import { RigidBody } from "@react-three/rapier";
 

@@ -1,90 +1,82 @@
-.contenedor-hud-principal {
-    position: absolute;
-    bottom: 1rem;
-    left: 1rem;
-    width: 16rem;
-    height: fit-content;
-    background-color: rgba(0, 0, 0, 0.5);
-    color: white;
-    border-radius: 1rem;
-    z-index: 50;
-    font-family: sans-serif;
+.hud-container {
+  position: absolute;
+  bottom: 1%;  
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  pointer-events: none;
 }
 
-.title {
-    font-size: 1rem;
-    font-weight: bold;
+.hud-marco {
+  background: #00000042;
+  border: 2px solid #555;
+  border-radius: 12px;
+  padding: 0.5% 1%;
 }
 
-.parrafo {
-    font-size: 0.875rem;
-    color: rgb(255, 0, 0);
+/* BARRAS */
+.bars {
+  margin-bottom: 10px;
 }
 
-
-
-/* BARRA DE VIDA */
-
-.barra-vida-contenedor {
-    display: flex;
-    flex-direction: column;
-    justify-self: center;
-    width: 80%;
+.bar {
+  width: 250px;
+  height: 10px;
+  background: #222;
+  margin: 4px auto;
+  border-radius: 4px;
+  overflow: hidden;
 }
 
-.barra-vida-parrafo {
-    font-size: 0.875rem;
-    color: rgb(255, 0, 0);
+.bar div {
+  height: 100%;
 }
 
-.barra-vida {
-    width: 100%;
-    background-color: rgb(133, 133, 133);
-    height: 1rem;
-    border: 2px solid rgb(255, 0, 0);
-    border-radius: 30px;
-    margin-top: 0.25rem;
+.health div {
+  background: red;
 }
 
-
-.barra-vida-actual {
-    background-color: rgb(255, 0, 0);
-    height: 100%;
-    border-radius: 30px;
+.stamina div {
+  background: cyan;
 }
 
-
-
-/* BARRA DE ENERGIA */
-
-.barra-energia-contenedor {
-    display: flex;
-    flex-direction: column;
-    justify-self: center;
-    width: 80%;
+/* HABILIDADES */
+.abilities {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
 }
 
-.barra-energia-parrafo {
-    font-size: 0.875rem;
-    color: rgb(0, 255, 0);
+.ability {
+  width: 60px;
+  height: 60px;
+  background: #111;
+  border: 2px solid #555;
+  border-radius: 8px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.barra-energia {
-    width: 100%;
-    background-color: rgb(133, 133, 133);
-    height: 1rem;
-    border: 2px solid rgb(0, 255, 0);
-    border-radius: 30px;
-    margin-top: 0.25rem;
+/* TECLA */
+.key {
+  position: absolute;
+  bottom: 2px;
+  right: 4px;
+  font-size: 12px;
+  color: white;
 }
 
-.barra-energia-actual {
-    background-color: rgb(0, 255, 0);
-    height: 100%;
-    border-radius: 30px;
+/* COOLDOWN */
+.cooldown {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.7);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
 }
-
-
-
-
-

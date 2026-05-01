@@ -1,13 +1,9 @@
-import { useGLTF , useAnimations} from '@react-three/drei';
+import { useGLTF, useAnimations, Stars } from '@react-three/drei';
 import { RigidBody } from '@react-three/rapier';
 import { useEffect, useRef } from 'react';
+import GroundBase from './GroundBase.jsx';
 
-/**
- * Wrapper Map: no usa hooks aquí, evita errores si no hay modelo.
- * Si model es falsy, devuelve null (no intenta cargar).
- */
-export const Map = ({ model = '/models/maps/map.glb', ...props }) => {
-
+export const Map3 = ({ model = '/models/maps/map.glb', map = null, position = [0, 0, 0], ...props }) => {
   const { scene, animations } = useGLTF(model);
   const group = useRef();
   const { actions } = useAnimations(animations, group);
@@ -34,8 +30,12 @@ export const Map = ({ model = '/models/maps/map.glb', ...props }) => {
   return (
     <group ref={group} {...props}>
       <RigidBody type="fixed" colliders="trimesh">
+        <Stars />
         <primitive object={scene} />
+        <GroundBase map={map} position={position} />
       </RigidBody>
     </group>
   );
 };
+
+export default Map3;

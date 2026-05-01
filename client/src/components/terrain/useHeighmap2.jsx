@@ -54,7 +54,7 @@ import { useMemo } from "react";
 import { RigidBody } from "@react-three/rapier";
 import { useTexture } from "@react-three/drei";
 import * as THREE from "three";
-import { useHeightmap } from "./useHeighmap";
+import { useHeightmap } from "./useHeighmap2";
 
 export const Ground = ({ map, position = [0, 0, 0], terrainRef= null }) => {
 

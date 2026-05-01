@@ -81,11 +81,9 @@ nota: no es necesaria la instalacion con npm, se puede usar directamente con npx
 ---------------------------------------- Coneccion al servidor ---------------------------------------------------
 ------------------------------------------------------------------------------------------------------------------
 
-# para enlazar el servidor con el cliente y permitir la comunicación en tiempo real entre ellos
-# usaremos Socket.IO, que es una biblioteca de JavaScript que facilita la comunicación bidireccional entre 
-# el cliente y el servidor a través de WebSockets. 
+# para enlazar el servidor con el cliente y permitir la comunicación en tiempo real entre ellos usaremos WebSockets. 
+# para manejar los estados de react usaremos jotai 
 
-npm install socket.io-client
 npm install jotai (libreria para gestion de estados para react)
 
 

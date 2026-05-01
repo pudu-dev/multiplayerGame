@@ -2,9 +2,9 @@ import { useMemo } from "react";
 import { RigidBody } from "@react-three/rapier";
 import { useTexture } from "@react-three/drei";
 import * as THREE from "three";
+import Water from "./Water.jsx";
 
-export const Ground = ({ map, position = [0, 0, 0], terrainRef = null }) => {
-
+export const Map2 = ({ map, position = [0, 0, 0], terrainRef = null }) => {
   const terrain = map?.terrain ?? null;
 
   const hm = useMemo(() => {
@@ -22,16 +22,10 @@ export const Ground = ({ map, position = [0, 0, 0], terrainRef = null }) => {
   const rock = useTexture("/models/maps/rock.jpg");
   rock.wrapS = rock.wrapT = THREE.RepeatWrapping;
 
-  const grass = useTexture("/models/maps/grass.jpg");
-  grass.wrapS = grass.wrapT = THREE.RepeatWrapping;
-
   if (!map) return null;
 
-  const STEP = terrain?.step ?? 1;
-  const HEIGHT_THRESHOLD = 5; // umbral para distinguir entre zonas de hierba (verde) y roca (blanca) en el terreno, basado en la altura final del terreno. Ajustar según el heightmap y la escala de alturas para obtener una buena distribución de texturas.
-
-  const baseSize = terrain?.baseSize ?? 2;
-  const baseHeight = terrain?.baseHeight ?? 0;
+  const STEP = Math.max(1, terrain?.step ?? 8);
+  const HEIGHT_THRESHOLD = 5;
 
   const terrainSize = terrain?.terrainSize ?? 2;
   const terrainHeight = terrain?.terrainHeight ?? -10;
@@ -39,7 +33,6 @@ export const Ground = ({ map, position = [0, 0, 0], terrainRef = null }) => {
   const terrainPosition = terrain?.position ?? [0, 0, 0];
 
   rock.repeat.set((map.size[0] * terrainSize) / 10, (map.size[1] * terrainSize) / 10);
-  grass.repeat.set((map.size[0] * baseSize) / 10, (map.size[1] * baseSize) / 10);
 
   const terrainGeometry = useMemo(() => {
     if (!hm) return null;
@@ -54,7 +47,8 @@ export const Ground = ({ map, position = [0, 0, 0], terrainRef = null }) => {
       heightSegments
     );
 
-    const pos = geom.attributes.position;
+    const posAttr = geom.attributes.position;
+    const posArray = posAttr.array;
     const colors = [];
 
     for (let y = 0; y <= heightSegments; y++) {
@@ -68,7 +62,7 @@ export const Ground = ({ map, position = [0, 0, 0], terrainRef = null }) => {
         const height = hm.heights[hi] ?? 0;
         const finalHeight = height * terrainHeightScale + terrainHeight;
 
-        pos.setZ(i, finalHeight);
+        posArray[i * 3 + 2] = finalHeight;
 
         if (finalHeight < HEIGHT_THRESHOLD) {
           colors.push(0, 1, 0);
@@ -79,20 +73,14 @@ export const Ground = ({ map, position = [0, 0, 0], terrainRef = null }) => {
     }
 
     geom.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-    pos.needsUpdate = true;
+    posAttr.needsUpdate = true;
     geom.computeVertexNormals();
     return geom;
   }, [hm, map.size, STEP, terrainSize, terrainHeight, terrainHeightScale]);
+  
 
   return (
     <>
-      {/* base siempre */}
-      <mesh position={[position[0], baseHeight, position[2]]} rotation-x={-Math.PI / 2}>
-        <planeGeometry args={[map.size[0] * baseSize, map.size[1] * baseSize]} />
-        <meshStandardMaterial map={grass} />
-      </mesh>
-
-      {/* renderizar terreno solo si hay geometry */}
       {terrainGeometry && (
         <RigidBody type="fixed" colliders="trimesh">
           <mesh
@@ -107,10 +95,18 @@ export const Ground = ({ map, position = [0, 0, 0], terrainRef = null }) => {
           >
             <meshStandardMaterial map={rock} vertexColors roughness={1} metalness={0} />
           </mesh>
+          <Water
+            width={map.size[0] * (map.terrain?.terrainSize ?? 2)}
+            height={map.size[1] * (map.terrain?.terrainSize ?? 2)}
+            position={[0, (map.terrain?.baseHeight ?? 0) + 4, 0]}
+            segments={128}
+            color={[0.0, 0.45, 0.8]}
+            opacity={0.8}
+          />
         </RigidBody>
       )}
     </>
   );
 };
 
-export default Ground;
+export default Map2;

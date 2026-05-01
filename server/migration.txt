@@ -1,0 +1,19 @@
+# crear python env
+python -m venv .venv
+.venv\Scripts\activate
+
+# para crear el archivo de requerimientos y actualizar librerias
+pip freeze > requirements.txt #creamos el archivo
+pip install -r requirements.txt #instalamos las dependencias
+
+#ejecutar servidor
+.venv\Scripts\activate #activamos venv
+python -m uvicorn index:server --reload --port 3001 #inicializamos, index:server es el sv nombre + archivo nombre
+
+#librerias principales
+pip install fastapi uvicorn websockets
+
+#librerias secundarias
+pip install pydantic pillow numpy
+
+

@@ -1,46 +1,47 @@
 import "./HUD.css";
 
-export default function HUD({ health = 100, stamina = 100 }) {
+export default function HUD({ health = 100, stamina = 100, cooldowns = {} }) {
   return (
-    <div className="contenedor-hud-principal">
 
-      <h2 className="title">Mini HUD</h2>
-      
-      <p className="parrafo">
-        MLB para mover <br/> 
-        SPACE para saltar
-      </p>
+    <div className="hud-container">
 
+      <div className="hud-marco">
+        {/* VIDA + STAMINA */}
+        <div className="bars">
+          <div className="bar health">
+            <div style={{ width: `${health}%` }} />
+          </div>
 
-      {/* Barra de vida */}
-      <div className="barra-vida-contenedor">
+          <div className="bar stamina">
+            <div style={{ width: `${stamina}%` }} />
+          </div>
+        </div>
 
-        <span className="barra-vida-parrafo">Health</span>
+        {/* HABILIDADES */}
+        <div className="abilities">
 
-        <div className="barra-vida">
+          {[1, 2, 3, 4].map((id) => {
+            const cd = cooldowns[id] || 0;
+            const seconds = (cd / 1000).toFixed(1);
 
-          <div className="barra-vida-actual" style={{ width: `${health}%` }} />
+            return (
+              <div key={id} className="ability">
+
+                <span className="key">{id}</span>
+
+                {cd > 0 && (
+                  <div className="cooldown">
+                    {seconds}
+                  </div>
+                )}
+
+              </div>
+            );
+          })}
 
         </div>
 
       </div>
-
-
-
-      {/* Barra de energía / stamina */}
-      <div className="barra-energia-contenedor">
-
-        <span className="barra-energia-parrafo">Stamina</span>
-
-        <div className="barra-energia">
-
-          <div className="barra-energia-actual" style={{ width: `${stamina}%` }} />
-
-        </div>
-
-      </div>
-
-
 
     </div>
   );
