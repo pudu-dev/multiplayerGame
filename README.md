@@ -1,10 +1,18 @@
 # Multiplayer Game
 
+
+## Estado del proyecto
+
+> 🚧 !Proyecto personal en desarrollo enfocado en aprendizaje y experimentación. 🚧
+---
+
+
 ## Overview:
+
 Proyecto enfocado en el aprendizaje de arquitectura multiplayer en tiempo real, combinando renderizado 3D en el cliente con lógica autoritativa en el servidor.
 ---
 
-## Características
+## Características:
 
 -  Generación procedural de mapas
 -  Sistema de transicion de escena y mapas
@@ -13,10 +21,6 @@ Proyecto enfocado en el aprendizaje de arquitectura multiplayer en tiempo real, 
 -  Sistema de cámara dinámico
 ---
 
-## Estado del proyecto
-
-> 🚧 !Proyecto personal en desarrollo enfocado en aprendizaje y experimentación. 🚧
----
 
 ## Objetivo
 
@@ -27,13 +31,14 @@ Proyecto enfocado en el aprendizaje de arquitectura multiplayer en tiempo real, 
 - Integración cliente-servidor eficiente
 ---
 
+
 ## Arquitectura:
 
 **Modelo híbrido:**
 - Server Authority (autoridad del servidor)
 - Client-side Prediction (predicción del cliente)
 
-Esto permite:
+  Esto permite:
 - Mayor precisión en el estado del juego
 - Reducción de latencia percibida
 - Sincronización consistente entre jugadores
